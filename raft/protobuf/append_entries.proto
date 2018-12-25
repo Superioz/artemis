@@ -1,0 +1,35 @@
+syntax = "proto3";
+package protobuf;
+
+message AppendEntriesCall {
+    // term of the leader
+    uint64 Term = 1;
+
+    // if of the leader
+    string LeaderId = 2;
+
+    // id of the last log entry before these `Entries`
+    uint64 PrevLogIndex = 3;
+
+    // term of the last log entry
+    uint64 PrevLogTerm = 4;
+
+    // the entries to be sent (empty for simple heartbeat)
+    repeated AppendEntry Entries = 5;
+
+    // index of the last commited log entry by the leader
+    uint64 CommitIndex = 6;
+}
+
+message AppendEntriesRespond {
+    // current term of the follower
+    uint64 Term = 1;
+
+    // true if follower contained log entry with `PrevLogIndex` and `PrevLogTerm`
+    bool Success = 2;
+}
+
+message AppendEntry {
+    // The content of the entry
+    bytes content = 1;
+}

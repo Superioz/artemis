@@ -1,0 +1,24 @@
+syntax = "proto3";
+package protobuf;
+
+message RequestVoteCall {
+    // current term of the candidate
+    uint64 Term = 1;
+
+    // id of the candidate
+    string CandidateId = 2;
+
+    // index of the last log entry
+    uint64 LastLogIndex = 3;
+
+    // term of the last log entry
+    uint64 LastLogTerm = 4;
+}
+
+message RequestVoteRespond {
+    // current term of the node sending this respond
+    uint32 Term = 1;
+
+    // true if the node grants the vote for the candidate
+    bool VoteGranted = 2;
+}

@@ -1,9 +1,0 @@
-syntax = "proto3";
-package protobuf;
-
-message RequestVoteCall {
-    uint64 Term = 1;
-    uint64 CandidateId = 2;
-    uint64 LastLogIndex = 3;
-    uint64 LastLogTerm = 4;
-}
