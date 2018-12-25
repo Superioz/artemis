@@ -1,0 +1,13 @@
+syntax = "proto3";
+package protobuf;
+
+import "log_entry.proto";
+
+message AppendEntriesCall {
+    uint64 Term = 1;
+    string LeaderId = 2;
+    uint64 PrevLogIndex = 3;
+    uint64 PrevLogTerm = 4;
+    repeated LogEntry Entries = 5;
+    uint64 CommitIndex = 6;
+}

@@ -1,0 +1,7 @@
+syntax = "proto3";
+package protobuf;
+
+message RequestVoteRespond {
+    uint64 Term = 1;
+    bool VoteGranted = 2;
+}

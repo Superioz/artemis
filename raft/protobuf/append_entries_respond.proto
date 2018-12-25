@@ -1,0 +1,7 @@
+syntax = "proto3";
+package protobuf;
+
+message AppendEntriesRespond {
+    uint64 Term = 1;
+    bool Success = 2;
+}
