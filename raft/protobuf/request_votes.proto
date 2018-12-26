@@ -1,24 +1,57 @@
 syntax = "proto3";
 package protobuf;
 
+/*
+ In raft there are three states: follower, candidate and leader.
+ If the follower's election timeout times out he will begin to
+ start an election. Now the follower becomes a candidate and sends
+ this `RequestVoteCall` to every other node listening to the broadcast
+ topic.
+ He wants to gain the majority of votes, of course, he votes for
+ himself first. After he received x `RequestVoteRespond`s, he can tell
+ if he won the election or not. e.g.: 2/5 votes is not enough, but 3/5 is.
+
+ After he won the election, he is the new leader and sends a heartbeat to tell
+ everyone. Thereafter the normal process starts again.
+
+ To decide if the vote can be granted or not, there is a rule:
+ false if..
+    - ..the `term` of the candidate is less than the term of the call receiver
+    - ..the call receiver already voted for someone besides this `candidateId`
+    - ..the `lastLogIndex` or the `lastLogTerm` is less than the last log index and
+        term of the call receiver
+ true if..
+    - ..the `term` of the candidate is higher than the term of the receiver
+    - ..the call receiver already votes for this candidate or voted for nobody
+    - ..the `lastLogIndex` or the `lastLogTerm` is at least equals to the last log index and
+        term of the call receiver
+*/
 message RequestVoteCall {
     // current term of the candidate
-    uint64 Term = 1;
+    uint64 term = 1;
 
     // id of the candidate
-    string CandidateId = 2;
+    string candidateId = 2;
 
     // index of the last log entry
-    uint64 LastLogIndex = 3;
+    uint64 lastLogIndex = 3;
 
     // term of the last log entry
-    uint64 LastLogTerm = 4;
+    uint64 lastLogTerm = 4;
 }
 
+/*
+ If a candidate starts an election every node receives a `RequestVoteCall`.
+ This message is for responding to the vote call and telling the candidate
+ if this node votes for him or not.
+
+ The node returns a respond with its current term and if it grants the vote
+ or not. `VoteGranted` is true if the node votes for the candidate, otherwise false.
+ */
 message RequestVoteRespond {
     // current term of the node sending this respond
-    uint32 Term = 1;
+    uint32 term = 1;
 
     // true if the node grants the vote for the candidate
-    bool VoteGranted = 2;
+    bool voteGranted = 2;
 }

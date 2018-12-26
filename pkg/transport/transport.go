@@ -1,19 +1,24 @@
 package transport
 
+import "time"
+
 type Packet struct {
-	Id uint8
+	Id   uint8
 	Data []byte
 }
 
 type State struct {
-	Connected bool
+	CurrentBroker string
+	Connected     bool
+	LastSent      time.Time
+	LastReceived  time.Time
 }
 
 type Interface interface {
-	Connect(url string)
-	Disconnect()
-	State() State
+	Connect(url string) error
+	Disconnect() error
+	State() *State
 
 	Send(data []byte, topic string) error
-	Receive() chan Packet
+	Receive() chan *Packet
 }
