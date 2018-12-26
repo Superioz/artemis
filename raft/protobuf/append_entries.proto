@@ -1,6 +1,8 @@
 syntax = "proto3";
 package protobuf;
 
+import "log_entry.proto";
+
 /*
  There are two cases where this message can be used: As heartbeat
  and as call to replicate a log. But in each case only the leader
@@ -11,6 +13,16 @@ package protobuf;
  the same.
  Otherwise if the `Entries` are at least of length one, than this message
  serves as a call to replicate given entries/logs.
+
+ Heartbeat:
+ If used as a heartbeat, the `Entries` are empty. The heartbeat tells the other
+ nodes, that a leader is still in authority and the response tells the leader, if
+ the nodes are still existent as well and if the follower's log is correct.
+
+ Replicate Logs:
+ In this case `Entries` can have a length of `x >= 1`.
+ If sent, the node has to try to append the given log entries.
+ Gets a respond if the operation has been successful.
  */
 message AppendEntriesCall {
     // term of the leader
@@ -26,21 +38,24 @@ message AppendEntriesCall {
     uint64 prevLogTerm = 4;
 
     // the entries to be sent (empty for simple heartbeat)
-    repeated AppendEntry entries = 5;
+    repeated LogEntry entries = 5;
 
     // index of the last commited log entry by the leader
     uint64 commitIndex = 6;
 }
 
+/*
+ This respond is being sent by a follower if it received an `AppendEntriesCall`.
+
+ The `success` value is..
+ - ..false, if the term sent by the leader is less than the term of this follower node
+ - ..false, if log of follower doesn't contain entry with `prevLogIndex` AND `prevLogTerm`
+ - ..true, if the conditions above are both not true
+ */
 message AppendEntriesRespond {
     // current term of the follower
     uint64 term = 1;
 
-    // true if follower contained log entry with `PrevLogIndex` and `PrevLogTerm`
+    // true if follower contained log entry with `prevLogIndex` and `prevLogTerm`
     bool success = 2;
-}
-
-message AppendEntry {
-    // The content of the entry
-    bytes content = 1;
 }

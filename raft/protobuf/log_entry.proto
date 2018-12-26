@@ -1,0 +1,17 @@
+syntax = "proto3";
+package protobuf;
+
+/*
+ Represents an entry which is stored in the log.
+ */
+message LogEntry {
+    // the index of the entry inside the leader's log
+    uint64 index = 1;
+
+    // current term of this entry
+    // which is the term in which the client requested this command
+    uint64 term = 2;
+
+    // The content of the entry
+    bytes content = 3;
+}

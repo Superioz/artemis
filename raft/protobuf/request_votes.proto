@@ -46,7 +46,7 @@ message RequestVoteCall {
  if this node votes for him or not.
 
  The node returns a respond with its current term and if it grants the vote
- or not. `VoteGranted` is true if the node votes for the candidate, otherwise false.
+ or not. `voteGranted` is true if the node votes for the candidate, otherwise false.
  */
 message RequestVoteRespond {
     // current term of the node sending this respond
