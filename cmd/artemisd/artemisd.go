@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"github.com/superioz/artemis/pkg/logger"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	logger.Info("Hello, World!")
 }

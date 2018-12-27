@@ -2,12 +2,16 @@ package logger
 
 import (
 	"fmt"
+	"github.com/superioz/artemis/pkg/util"
 	"os"
 	"time"
 )
 
 const (
 	stampMilli = "15:04:05.000"
+
+	infoLevel = "INFO"
+	errLevel  = "SEVERE"
 )
 
 var config Config = Config{
@@ -30,32 +34,37 @@ func formatMessage(message string, level string) string {
 	return fmt.Sprintf(format, level, message)
 }
 
-func log(stream *os.File, context ... interface{}) {
-	_, err := fmt.Fprintln(stream, context)
+func log(stream *os.File, message string, level string, context []interface{}) {
+	_, err := fmt.Fprintln(stream, util.Insert(context, 0, formatMessage(message, level))...)
 	if err != nil {
 		// well, where do we log now? ¯\_(ツ)_/¯
 		// we doesn't want to stop the whole process either
-		fmt.Println(err)
+		fmt.Println("error while logging message", err)
 	}
 }
 
-func logf(stream *os.File, message string, context ... interface{}) {
-	_, err := fmt.Fprintf(stream, message+"\n", context)
+func logf(stream *os.File, format string, level string, context []interface{}) {
+	_, err := fmt.Fprintf(stream, formatMessage(format, level)+"\n", context...)
+
 	if err != nil {
 		// well, where do we log now? ¯\_(ツ)_/¯
 		// we doesn't want to stop the whole process either
-		fmt.Println(err)
+		fmt.Println("error while logging formatted message", err)
 	}
 }
 
-func Info(context ... interface{}) {
-	log(os.Stdout, context)
+func Info(message string, context ... interface{}) {
+	log(os.Stdout, message, infoLevel, context)
 }
 
-func Infof(message string, context ... interface{}) {
-	logf(os.Stdout, message, context)
+func Infof(format string, context ... interface{}) {
+	logf(os.Stdout, format, infoLevel, context)
 }
 
-func Err(context ... interface{}) {
+func Err(message string, context ... interface{}) {
+	log(os.Stderr, message, errLevel, context)
+}
 
+func Errf(format string, context ... interface{}) {
+	logf(os.Stderr, format, errLevel, context)
 }
