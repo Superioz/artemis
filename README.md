@@ -1,4 +1,4 @@
-Artemis
+artemis
 =======
 
 ![Logo](/docs/static/logo.png "Logo")
