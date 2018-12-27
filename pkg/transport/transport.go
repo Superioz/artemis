@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-const (
-	// the prefix for the queue/exchange/...
-	queuePrefix = "artemis"
-)
-
 // represents a packet which is being sent to the
 // the broker and received from the broker.
 type Packet struct {
