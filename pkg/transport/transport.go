@@ -96,11 +96,37 @@ type Interface interface {
 	// returns a channel pipeline for this -v
 	// sends a slice of bytes to given topic.
 	// error if data couldn't be sent.
-	Send() chan<- *AMQPInterface
+	Send() chan<- *OutgoingMessage
 
 	// returns a channel pipeline for incoming messages.
 	// doesn't matter, from which topic they are.
-	Receive() <-chan *AMQPIncomingMessage
+	Receive() <-chan *IncomingMessage
+}
+
+// represents an from amqp received message
+type IncomingMessage struct {
+	// the raw packet of this per amqp sent message.
+	Packet *Packet
+
+	// the topic of the packet.
+	Topic string
+
+	// the uuid of the sender, or `nil` if not found.
+	Source uuid.UUID
+
+	// the current time stamp when this message
+	// got received.
+	Time time.Time
+}
+
+// represents an outgoing message into the interface
+// outgoing channel
+type OutgoingMessage struct {
+	// the key to route the data to
+	RoutingKey string
+
+	// the raw data as byte slice
+	Data []byte
 }
 
 // unmarshalls given bytes

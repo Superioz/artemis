@@ -32,32 +32,6 @@ type amqpRoute struct {
 	queue amqp.Queue
 }
 
-// represents an from amqp received message
-type AMQPIncomingMessage struct {
-	// the raw packet of this per amqp sent message.
-	Packet *Packet
-
-	// the topic of the packet.
-	Topic string
-
-	// the uuid of the sender, or `nil` if not found.
-	Source uuid.UUID
-
-	// the current time stamp when this message
-	// got received.
-	Time time.Time
-}
-
-// represents an outgoing message into the interface
-// outgoing channel
-type AMQPOutgoingMessage struct {
-	// the key to route the data to
-	RoutingKey string
-
-	// the raw data as byte slice
-	Data []byte
-}
-
 // implements the transport `Interface` for amqp
 type AMQPInterface struct {
 	state *State
@@ -70,10 +44,10 @@ type AMQPInterface struct {
 	privateRoute amqpRoute
 
 	// the messaging channel for incoming messages
-	incoming chan *AMQPIncomingMessage
+	incoming chan *IncomingMessage
 
 	// the messaging channel for outgoing messages
-	outgoing chan *AMQPOutgoingMessage
+	outgoing chan *OutgoingMessage
 
 	connection  *amqp.Connection
 	channel     *amqp.Channel
@@ -155,8 +129,8 @@ func (i *AMQPInterface) Connect(url string) error {
 	logger.Info("Declared amqp queues.")
 
 	// create channels
-	i.incoming = make(chan *AMQPIncomingMessage)
-	i.outgoing = make(chan *AMQPOutgoingMessage)
+	i.incoming = make(chan *IncomingMessage)
+	i.outgoing = make(chan *OutgoingMessage)
 
 	// listen for input
 	go func(i *AMQPInterface) {
@@ -253,22 +227,22 @@ func (i *AMQPInterface) State() State {
 }
 
 // returns the write only packet channel for sending.
-func (i *AMQPInterface) Send() chan<- *AMQPOutgoingMessage {
+func (i *AMQPInterface) Send() chan<- *OutgoingMessage {
 	return i.outgoing
 }
 
 // returns the read only packet channel for receiving
-func (i *AMQPInterface) Receive() <-chan *AMQPIncomingMessage {
+func (i *AMQPInterface) Receive() <-chan *IncomingMessage {
 	return i.incoming
 }
 
 // converts received `Delivery` into a wrapper message struct.
 // stores the current timestamp, the route and the source, which
 // a normal `Packet` doesn't.
-func convertMessage(d amqp.Delivery, route amqpRoute) (AMQPIncomingMessage, error) {
+func convertMessage(d amqp.Delivery, route amqpRoute) (IncomingMessage, error) {
 	p, err := NewPacket(d.Body)
 	if err != nil {
-		return AMQPIncomingMessage{}, err
+		return IncomingMessage{}, err
 	}
 
 	// create wrapper for this message
@@ -278,7 +252,7 @@ func convertMessage(d amqp.Delivery, route amqpRoute) (AMQPIncomingMessage, erro
 		uid, _ = uuid.FromString(uidStr)
 	}
 
-	message := AMQPIncomingMessage{
+	message := IncomingMessage{
 		Packet: &p,
 		Topic:  route.topic,
 		Source: uid,
