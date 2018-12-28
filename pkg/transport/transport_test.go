@@ -65,7 +65,7 @@ func TestAMQPCommunication(t *testing.T) {
 	go run(&n3)
 	time.Sleep(2 * time.Second)
 
-	n1.Send() <- &AMQPOutgoingMessage{
+	n1.Send() <- &OutgoingMessage{
 		RoutingKey: "broadcast.all",
 		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
 	}
