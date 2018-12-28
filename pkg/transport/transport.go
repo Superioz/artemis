@@ -2,9 +2,20 @@ package transport
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/golang/protobuf/proto"
 	"github.com/satori/go.uuid"
 	"github.com/superioz/artemis/pkg/buffer"
+	"github.com/superioz/artemis/raft/protocol"
 	"time"
+)
+
+const (
+	// broadcast prefix/suffix
+	broadcastKey = "broadcast"
+
+	// the key of the broadcast topic
+	BroadcastTopic = broadcastKey + ".*"
 )
 
 // represents a packet which is being sent to the
@@ -88,4 +99,45 @@ type Interface interface {
 	// returns a channel pipeline for incoming messages.
 	// doesn't matter, from which topic they are.
 	Receive() <-chan *amqpMessage
+}
+
+// unmarshalls given bytes
+// fetches the packet id of the data and unmarshals
+// the rest of the data into a `proto.Message`
+func Unmarshal(data []byte) (proto.Message, error) {
+	p, err := NewPacket(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var m = protocol.FromId(p.Id)
+	if m == nil {
+		return nil, fmt.Errorf("packet with id %d does not exist", p.Id)
+	}
+
+	err = proto.Unmarshal(p.Data, m)
+
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// marshals given message into its packet id and message
+func Marshal(pb proto.Message) ([]byte, error) {
+	if pb == nil {
+		return nil, fmt.Errorf("message is null")
+	}
+
+	packetId := protocol.ToId(pb)
+	marshal, err := proto.Marshal(pb)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	buffer.WriteUint16(buf, packetId)
+	buf.Write(marshal)
+
+	return buf.Bytes(), nil
 }

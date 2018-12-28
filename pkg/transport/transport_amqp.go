@@ -12,9 +12,6 @@ import (
 const (
 	// kind of the amqp exchange
 	exchangeKind = "topic"
-
-	// the key of the broadcast topic
-	broadcastKey = "broadcast"
 )
 
 // wrapper struct for an amqp topic.
@@ -79,7 +76,7 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 	return AMQPInterface{
 		state: &State{Id: id, ExchangeKey: exchange},
 		broadcastRoute: amqpRoute{
-			topic:     broadcastKey + ".*",
+			topic:     BroadcastTopic,
 			queueName: fmt.Sprintf("%s_%s_%s", exchange, id.String(), broadcastKey),
 		},
 		privateRoute: amqpRoute{
@@ -290,18 +287,18 @@ func (i *AMQPInterface) declareQueue(topic *amqpRoute) error {
 // topic of amqp interface.
 // if topic doesn't exist for interface, return `nil`
 func (i *AMQPInterface) getTopic(queue string) *amqpRoute {
-	var t amqpRoute
+	var r amqpRoute
 
 	switch strings.ToLower(queue) {
 	case i.broadcastRoute.queueName:
-		t = i.broadcastRoute
+		r = i.broadcastRoute
 		break
 	case i.privateRoute.queueName:
-		t = i.broadcastRoute
+		r = i.broadcastRoute
 		break
 	default:
 		return nil
 	}
 
-	return &t
+	return &r
 }

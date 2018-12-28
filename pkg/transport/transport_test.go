@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/superioz/artemis/pkg/buffer"
+	"github.com/superioz/artemis/raft/protocol"
 	"testing"
 	"time"
 )
 
+// tests if a created packet contains expected values
 func TestNewPacket(t *testing.T) {
 	buf := bytes.NewBuffer([]byte{})
 	buffer.WriteUint16(buf, 42)
@@ -71,4 +73,56 @@ func TestAMQPCommunication(t *testing.T) {
 		select {}
 	}
 	// success with sending the message
+}
+
+// makes sure that the registry returns a new instance
+// of the stored message and no pointer
+func TestRegistry(t *testing.T) {
+	m1 := &protocol.RequestVoteCall{Term: 1}
+	m2 := &protocol.RequestVoteCall{Term: 2}
+
+	b1, err := Marshal(m1)
+	b2, err2 := Marshal(m2)
+	if err != nil || err2 != nil {
+		t.Fatal(err)
+	}
+
+	m11, err := Unmarshal(b1)
+	m21, err2 := Unmarshal(b2)
+	if err != nil || err2 != nil {
+		t.Fatal(err)
+	}
+
+	origin1, _ := m11.(*protocol.RequestVoteCall)
+	term1 := origin1.Term
+
+	origin2, _ := m21.(*protocol.RequestVoteCall)
+	term2 := origin2.Term
+
+	if term1 == term2 {
+		t.Fatal("found identical but expected different packets")
+	}
+}
+
+// makes sure that the marshalling works correctly
+func TestMarshal(t *testing.T) {
+	m := &protocol.RequestVoteCall{Term: 1}
+
+	b, err := Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m1, err := Unmarshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origin, ok := m1.(*protocol.RequestVoteCall)
+	if !ok {
+		t.Fatal("couldn't convert to original type")
+	}
+	if origin.Term != m.Term {
+		t.Fatal("expected term is not real term")
+	}
 }

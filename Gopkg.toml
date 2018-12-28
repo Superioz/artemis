@@ -30,10 +30,6 @@
   unused-packages = true
 
 [[constraint]]
-  name = "github.com/golang/protobuf"
-  version = "1.2.0"
-
-[[constraint]]
   branch = "master"
   name = "github.com/streadway/amqp"
 
@@ -42,5 +38,5 @@
   version = "1.2.0"
 
 [[constraint]]
-  name = "go.uber.org/zap"
-  version = "1.9.1"
+  branch = "master"
+  name = "github.com/golang/protobuf"
