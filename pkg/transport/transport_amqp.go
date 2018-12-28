@@ -20,11 +20,14 @@ const (
 // wrapper struct for an amqp topic.
 // contains the channels and information about
 // the specific topic.
-type amqpTopic struct {
+type amqpRoute struct {
 	// the key of the topic.
 	// with this key you can route messages to a topic
 	// and receive messages from a topic.
-	key string
+	topic string
+
+	// name of the queue to be created
+	queueName string
 
 	// the channel for incoming packets
 	incoming chan *Packet
@@ -36,22 +39,16 @@ type amqpTopic struct {
 	queue amqp.Queue
 }
 
-// returns the topic key as lowercase string
-// to be able to better compare two keys.
-func (t *amqpTopic) LowerKey() string {
-	return strings.ToLower(t.key)
-}
-
 // implements the transport `Interface` for amqp
 type AMQPInterface struct {
 	state *State
 
-	// the topic for broadcast messages
-	broadcastTopic amqpTopic
+	// the route for broadcast messages
+	broadcastRoute amqpRoute
 
-	// the topic for private messages explicitly sent to
+	// the route for private messages explicitly sent to
 	// this interface
-	privateTopic amqpTopic
+	privateRoute amqpRoute
 
 	connection  *amqp.Connection
 	channel     *amqp.Channel
@@ -64,9 +61,17 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 	id := uuid.NewV4()
 
 	return AMQPInterface{
-		state:          &State{Id: id, ExchangeKey: exchange},
-		broadcastTopic: amqpTopic{key: exchange + "_" + broadcastKey, incoming: make(chan *Packet)},
-		privateTopic:   amqpTopic{key: exchange + "_" + id.String(), incoming: make(chan *Packet)},
+		state: &State{Id: id, ExchangeKey: exchange},
+		broadcastRoute: amqpRoute{
+			topic:     broadcastKey + ".*",
+			queueName: fmt.Sprintf("%s_%s_%s", exchange, id.String(), broadcastKey),
+			incoming:  make(chan *Packet),
+		},
+		privateRoute: amqpRoute{
+			topic:     id.String(),
+			queueName: fmt.Sprintf("%s_%s", exchange, id.String()),
+			incoming:  make(chan *Packet),
+		},
 	}
 }
 
@@ -107,14 +112,14 @@ func (i *AMQPInterface) Connect(url string) error {
 	logger.Info("Declared amqp exchange.")
 
 	// declare the private queue of the interface
-	err = i.declareQueue(&i.privateTopic)
+	err = i.declareQueue(&i.privateRoute)
 	if err != nil {
 		_ = i.Disconnect()
 		return err
 	}
 
 	// declare the broadcast queue
-	err = i.declareQueue(&i.broadcastTopic)
+	err = i.declareQueue(&i.broadcastRoute)
 	if err != nil {
 		_ = i.Disconnect()
 		return err
@@ -132,7 +137,7 @@ func (i *AMQPInterface) Connect(url string) error {
 			case _ = <-i.notifyClose:
 				_ = i.Disconnect()
 				break
-			case broadcast := <-i.broadcastTopic.consumer:
+			case broadcast := <-i.broadcastRoute.consumer:
 				p, err := NewPacket(broadcast.Body)
 				if err != nil {
 					logger.Err("couldn't read packet id", err)
@@ -145,10 +150,10 @@ func (i *AMQPInterface) Connect(url string) error {
 				// send to broadcast consumer if possible
 				// TODO not two channels, but one with packets containing the topic
 				select {
-				case i.broadcastTopic.incoming <- &p:
+				case i.broadcastRoute.incoming <- &p:
 				}
 				break
-			case private := <-i.privateTopic.consumer:
+			case private := <-i.privateRoute.consumer:
 				p, err := NewPacket(private.Body)
 				if err != nil {
 					logger.Err("couldn't read packet id", err)
@@ -160,7 +165,7 @@ func (i *AMQPInterface) Connect(url string) error {
 
 				// send to private consumer if possible
 				select {
-				case i.privateTopic.incoming <- &p:
+				case i.privateRoute.incoming <- &p:
 				}
 				break
 			}
@@ -189,16 +194,21 @@ func (i *AMQPInterface) State() State {
 	return *i.state
 }
 
-// send explicit data to the broker with given `topic`
-func (i *AMQPInterface) Send(data []byte, topic string) error {
+// send explicit data to the broker with given `routingKey`
+func (i *AMQPInterface) Send(data []byte, routingKey string) error {
 	if !i.state.Connected {
 		return fmt.Errorf("interface is not connected to broker")
 	}
 
+	// header
+	table := amqp.Table{}
+	table["user-id"] = i.state.Id.String()
+
 	// update last sent
 	i.state.LastSent = time.Now()
-	err := i.channel.Publish(i.state.ExchangeKey, topic, false, false,
+	err := i.channel.Publish(i.state.ExchangeKey, routingKey, false, false,
 		amqp.Publishing{
+			Headers: table,
 			ContentType: "text/plain",
 			Body:        data,
 		})
@@ -207,8 +217,8 @@ func (i *AMQPInterface) Send(data []byte, topic string) error {
 
 // returns the read only packet channel for receiving
 // if the topic doesn't exist in this interface return `nil`
-func (i *AMQPInterface) Receive(topic string) <-chan *Packet {
-	t := i.getTopic(topic)
+func (i *AMQPInterface) Receive(queue string) <-chan *Packet {
+	t := i.getTopic(queue)
 
 	if t == nil {
 		return nil
@@ -219,11 +229,11 @@ func (i *AMQPInterface) Receive(topic string) <-chan *Packet {
 
 // creates and binds a queue for given `topic`.
 // returns an error if anything goes wrong, otherwise `nil`.
-func (i *AMQPInterface) declareQueue(topic *amqpTopic) error {
+func (i *AMQPInterface) declareQueue(topic *amqpRoute) error {
 	if !i.state.Connected {
 		return fmt.Errorf("interface is not connected")
 	}
-	q, err := i.channel.QueueDeclare(topic.LowerKey(), false, true,
+	q, err := i.channel.QueueDeclare(topic.queueName, false, true,
 		false, false, nil)
 	if err != nil {
 		return err
@@ -231,7 +241,7 @@ func (i *AMQPInterface) declareQueue(topic *amqpTopic) error {
 	topic.queue = q
 
 	// binds the queue to the exchange
-	err = i.channel.QueueBind(q.Name, topic.LowerKey(), i.state.ExchangeKey, false, nil)
+	err = i.channel.QueueBind(q.Name, topic.topic, i.state.ExchangeKey, false, nil)
 	if err != nil {
 		return err
 	}
@@ -246,15 +256,15 @@ func (i *AMQPInterface) declareQueue(topic *amqpTopic) error {
 
 // topic of amqp interface.
 // if topic doesn't exist for interface, return `nil`
-func (i *AMQPInterface) getTopic(topic string) *amqpTopic {
-	var t amqpTopic
+func (i *AMQPInterface) getTopic(queue string) *amqpRoute {
+	var t amqpRoute
 
-	switch strings.ToLower(topic) {
-	case i.broadcastTopic.LowerKey():
-		t = i.broadcastTopic
+	switch strings.ToLower(queue) {
+	case i.broadcastRoute.queueName:
+		t = i.broadcastRoute
 		break
-	case i.privateTopic.LowerKey():
-		t = i.broadcastTopic
+	case i.privateRoute.queueName:
+		t = i.broadcastRoute
 		break
 	default:
 		return nil
