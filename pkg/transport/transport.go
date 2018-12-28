@@ -92,13 +92,14 @@ type Interface interface {
 	// `State#Connected` = false if not connected.
 	State() State
 
+	// returns a channel pipeline for this -v
 	// sends a slice of bytes to given topic.
 	// error if data couldn't be sent.
-	Send(data []byte, routingKey string) error
+	Send() chan<- *AMQPInterface
 
 	// returns a channel pipeline for incoming messages.
 	// doesn't matter, from which topic they are.
-	Receive() <-chan *amqpMessage
+	Receive() <-chan *AMQPIncomingMessage
 }
 
 // unmarshalls given bytes

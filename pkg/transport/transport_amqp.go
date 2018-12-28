@@ -5,7 +5,6 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 	"github.com/superioz/artemis/pkg/logger"
-	"strings"
 	"time"
 )
 
@@ -34,7 +33,7 @@ type amqpRoute struct {
 }
 
 // represents an from amqp received message
-type amqpMessage struct {
+type AMQPIncomingMessage struct {
 	// the raw packet of this per amqp sent message.
 	Packet *Packet
 
@@ -49,6 +48,16 @@ type amqpMessage struct {
 	Time time.Time
 }
 
+// represents an outgoing message into the interface
+// outgoing channel
+type AMQPOutgoingMessage struct {
+	// the key to route the data to
+	RoutingKey string
+
+	// the raw data as byte slice
+	Data []byte
+}
+
 // implements the transport `Interface` for amqp
 type AMQPInterface struct {
 	state *State
@@ -61,7 +70,10 @@ type AMQPInterface struct {
 	privateRoute amqpRoute
 
 	// the messaging channel for incoming messages
-	incoming chan *amqpMessage
+	incoming chan *AMQPIncomingMessage
+
+	// the messaging channel for outgoing messages
+	outgoing chan *AMQPOutgoingMessage
 
 	connection  *amqp.Connection
 	channel     *amqp.Channel
@@ -83,11 +95,15 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 			topic:     id.String(),
 			queueName: fmt.Sprintf("%s_%s", exchange, id.String()),
 		},
-		incoming: make(chan *amqpMessage),
 	}
 }
 
 // connects the interface to the amqp broker
+// if the connection somehow fails, `Disconnect` will be
+// executed. It is neccessary to execute this method again to
+// create the needed channels and to initialize important
+// other parts of the connection such as the queues and the
+// exchange from amqp.
 func (i *AMQPInterface) Connect(url string) error {
 	if i.state.Connected {
 		return fmt.Errorf("interface is already connected")
@@ -138,6 +154,10 @@ func (i *AMQPInterface) Connect(url string) error {
 	}
 	logger.Info("Declared amqp queues.")
 
+	// create channels
+	i.incoming = make(chan *AMQPIncomingMessage)
+	i.outgoing = make(chan *AMQPOutgoingMessage)
+
 	// listen for input
 	go func(i *AMQPInterface) {
 		for {
@@ -182,6 +202,31 @@ func (i *AMQPInterface) Connect(url string) error {
 			}
 		}
 	}(i)
+
+	// listen for output
+	go func(i *AMQPInterface) {
+		for outgoing := range i.outgoing {
+			if !i.state.Connected {
+				break
+			}
+
+			// header
+			table := amqp.Table{}
+			table["user-id"] = i.state.Id.String()
+
+			// update last sent
+			i.state.LastSent = time.Now()
+			err := i.channel.Publish(i.state.ExchangeKey, outgoing.RoutingKey, false, false,
+				amqp.Publishing{
+					Headers:     table,
+					ContentType: "text/plain",
+					Body:        outgoing.Data,
+				})
+			if err != nil {
+				break
+			}
+		}
+	}(i)
 	return nil
 }
 
@@ -196,6 +241,8 @@ func (i *AMQPInterface) Disconnect() error {
 	err := i.connection.Close()
 	i.state.CurrentBroker = ""
 	i.state.Connected = false
+	close(i.incoming)
+	close(i.outgoing)
 	logger.Info("Disconnected from amqp.")
 	return err
 }
@@ -205,40 +252,23 @@ func (i *AMQPInterface) State() State {
 	return *i.state
 }
 
-// send explicit data to the broker with given `routingKey`
-func (i *AMQPInterface) Send(data []byte, routingKey string) error {
-	if !i.state.Connected {
-		return fmt.Errorf("interface is not connected to broker")
-	}
-
-	// header
-	table := amqp.Table{}
-	table["user-id"] = i.state.Id.String()
-
-	// update last sent
-	i.state.LastSent = time.Now()
-	err := i.channel.Publish(i.state.ExchangeKey, routingKey, false, false,
-		amqp.Publishing{
-			Headers:     table,
-			ContentType: "text/plain",
-			Body:        data,
-		})
-	return err
+// returns the write only packet channel for sending.
+func (i *AMQPInterface) Send() chan<- *AMQPOutgoingMessage {
+	return i.outgoing
 }
 
 // returns the read only packet channel for receiving
-// if the topic doesn't exist in this interface return `nil`
-func (i *AMQPInterface) Receive() <-chan *amqpMessage {
+func (i *AMQPInterface) Receive() <-chan *AMQPIncomingMessage {
 	return i.incoming
 }
 
 // converts received `Delivery` into a wrapper message struct.
 // stores the current timestamp, the route and the source, which
 // a normal `Packet` doesn't.
-func convertMessage(d amqp.Delivery, route amqpRoute) (amqpMessage, error) {
+func convertMessage(d amqp.Delivery, route amqpRoute) (AMQPIncomingMessage, error) {
 	p, err := NewPacket(d.Body)
 	if err != nil {
-		return amqpMessage{}, err
+		return AMQPIncomingMessage{}, err
 	}
 
 	// create wrapper for this message
@@ -248,7 +278,7 @@ func convertMessage(d amqp.Delivery, route amqpRoute) (amqpMessage, error) {
 		uid, _ = uuid.FromString(uidStr)
 	}
 
-	message := amqpMessage{
+	message := AMQPIncomingMessage{
 		Packet: &p,
 		Topic:  route.topic,
 		Source: uid,
@@ -282,23 +312,4 @@ func (i *AMQPInterface) declareQueue(topic *amqpRoute) error {
 		return err
 	}
 	return nil
-}
-
-// topic of amqp interface.
-// if topic doesn't exist for interface, return `nil`
-func (i *AMQPInterface) getTopic(queue string) *amqpRoute {
-	var r amqpRoute
-
-	switch strings.ToLower(queue) {
-	case i.broadcastRoute.queueName:
-		r = i.broadcastRoute
-		break
-	case i.privateRoute.queueName:
-		r = i.broadcastRoute
-		break
-	default:
-		return nil
-	}
-
-	return &r
 }

@@ -46,6 +46,7 @@ func TestAMQPCommunication(t *testing.T) {
 			t.Skip("couldn't connect to test amqp broker")
 		}
 
+		// listens for incoming packet and simply debug a message
 		for {
 			select {
 			case m := <-i.incoming:
@@ -64,13 +65,14 @@ func TestAMQPCommunication(t *testing.T) {
 	go run(&n3)
 	time.Sleep(2 * time.Second)
 
-	err := n1.Send([]byte(n1.state.Id.String()+": Hello there!"), "broadcast.all")
-	if err != nil {
-		t.Error("couldn't send message to exchange")
+	n1.Send() <- &AMQPOutgoingMessage{
+		RoutingKey: "broadcast.all",
+		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
 	}
+	time.Sleep(1 * time.Second)
 
-	for {
-		select {}
+	if !n1.State().Connected {
+		t.Fatal("node disconnected unexpectedly after sending message")
 	}
 	// success with sending the message
 }
