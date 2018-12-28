@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/superioz/artemis/pkg/buffer"
 	"github.com/superioz/artemis/raft/protocol"
+	"sync"
 	"testing"
 	"time"
 )
@@ -39,6 +40,9 @@ func TestAMQPCommunication(t *testing.T) {
 	n2 := NewAMQPInterface(exchange)
 	n3 := NewAMQPInterface(exchange)
 
+	mutex := sync.Mutex{}
+	count := 0
+
 	run := func(i *AMQPInterface) {
 		err := i.Connect("amqp://guest:guest@localhost:5672")
 
@@ -51,6 +55,11 @@ func TestAMQPCommunication(t *testing.T) {
 			select {
 			case m := <-i.incoming:
 				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.Id.String(), m.Topic, m.Source, string(m.Packet.Data)))
+
+				// count
+				mutex.Lock()
+				count++
+				mutex.Unlock()
 				break
 			}
 		}
@@ -69,10 +78,13 @@ func TestAMQPCommunication(t *testing.T) {
 		RoutingKey: "broadcast.all",
 		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	if !n1.State().Connected {
 		t.Fatal("node disconnected unexpectedly after sending message")
+	}
+	if count < 3 {
+		t.Fatal("didn't receive expected amount of messages")
 	}
 	// success with sending the message
 }
