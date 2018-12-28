@@ -29,14 +29,27 @@ type amqpRoute struct {
 	// name of the queue to be created
 	queueName string
 
-	// the channel for incoming packets
-	incoming chan *Packet
-
 	// the consumer channel
 	consumer <-chan amqp.Delivery
 
 	// the amqp queue of this topic
 	queue amqp.Queue
+}
+
+// represents an from amqp received message
+type amqpMessage struct {
+	// the raw packet of this per amqp sent message.
+	Packet *Packet
+
+	// the topic of the packet.
+	Topic string
+
+	// the uuid of the sender, or `nil` if not found.
+	Source uuid.UUID
+
+	// the current time stamp when this message
+	// got received.
+	Time time.Time
 }
 
 // implements the transport `Interface` for amqp
@@ -49,6 +62,9 @@ type AMQPInterface struct {
 	// the route for private messages explicitly sent to
 	// this interface
 	privateRoute amqpRoute
+
+	// the messaging channel for incoming messages
+	incoming chan *amqpMessage
 
 	connection  *amqp.Connection
 	channel     *amqp.Channel
@@ -65,13 +81,12 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 		broadcastRoute: amqpRoute{
 			topic:     broadcastKey + ".*",
 			queueName: fmt.Sprintf("%s_%s_%s", exchange, id.String(), broadcastKey),
-			incoming:  make(chan *Packet),
 		},
 		privateRoute: amqpRoute{
 			topic:     id.String(),
 			queueName: fmt.Sprintf("%s_%s", exchange, id.String()),
-			incoming:  make(chan *Packet),
 		},
+		incoming: make(chan *amqpMessage),
 	}
 }
 
@@ -138,34 +153,33 @@ func (i *AMQPInterface) Connect(url string) error {
 				_ = i.Disconnect()
 				break
 			case broadcast := <-i.broadcastRoute.consumer:
-				p, err := NewPacket(broadcast.Body)
+				m, err := convertMessage(broadcast, i.broadcastRoute)
 				if err != nil {
-					logger.Err("couldn't read packet id", err)
+					logger.Err("couldn't read message", err)
 					continue
 				}
 
 				// update last received timestamp
-				i.state.LastReceived = time.Now()
+				i.state.LastReceived = m.Time
 
-				// send to broadcast consumer if possible
-				// TODO not two channels, but one with packets containing the topic
+				// send to incoming if possible
 				select {
-				case i.broadcastRoute.incoming <- &p:
+				case i.incoming <- &m:
 				}
 				break
 			case private := <-i.privateRoute.consumer:
-				p, err := NewPacket(private.Body)
+				m, err := convertMessage(private, i.privateRoute)
 				if err != nil {
-					logger.Err("couldn't read packet id", err)
+					logger.Err("couldn't read message", err)
 					continue
 				}
 
 				// update last received timestamp
-				i.state.LastReceived = time.Now()
+				i.state.LastReceived = m.Time
 
-				// send to private consumer if possible
+				// send to incoming if possible
 				select {
-				case i.privateRoute.incoming <- &p:
+				case i.incoming <- &m:
 				}
 				break
 			}
@@ -208,7 +222,7 @@ func (i *AMQPInterface) Send(data []byte, routingKey string) error {
 	i.state.LastSent = time.Now()
 	err := i.channel.Publish(i.state.ExchangeKey, routingKey, false, false,
 		amqp.Publishing{
-			Headers: table,
+			Headers:     table,
 			ContentType: "text/plain",
 			Body:        data,
 		})
@@ -217,14 +231,33 @@ func (i *AMQPInterface) Send(data []byte, routingKey string) error {
 
 // returns the read only packet channel for receiving
 // if the topic doesn't exist in this interface return `nil`
-func (i *AMQPInterface) Receive(queue string) <-chan *Packet {
-	t := i.getTopic(queue)
+func (i *AMQPInterface) Receive() <-chan *amqpMessage {
+	return i.incoming
+}
 
-	if t == nil {
-		return nil
-	} else {
-		return t.incoming
+// converts received `Delivery` into a wrapper message struct.
+// stores the current timestamp, the route and the source, which
+// a normal `Packet` doesn't.
+func convertMessage(d amqp.Delivery, route amqpRoute) (amqpMessage, error) {
+	p, err := NewPacket(d.Body)
+	if err != nil {
+		return amqpMessage{}, err
 	}
+
+	// create wrapper for this message
+	uidStr, ok := d.Headers["user-id"].(string)
+	var uid uuid.UUID
+	if ok {
+		uid, _ = uuid.FromString(uidStr)
+	}
+
+	message := amqpMessage{
+		Packet: &p,
+		Topic:  route.topic,
+		Source: uid,
+		Time:   time.Now(),
+	}
+	return message, nil
 }
 
 // creates and binds a queue for given `topic`.

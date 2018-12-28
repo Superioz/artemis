@@ -83,9 +83,9 @@ type Interface interface {
 
 	// sends a slice of bytes to given topic.
 	// error if data couldn't be sent.
-	Send(data []byte, topic string) error
+	Send(data []byte, routingKey string) error
 
-	// returns a channel pipeline for given topic.
-	// `nil` if the topic is not registered by this node.
-	Receive(topic string) <-chan *Packet
+	// returns a channel pipeline for incoming messages.
+	// doesn't matter, from which topic they are.
+	Receive() <-chan *amqpMessage
 }

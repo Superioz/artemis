@@ -46,13 +46,8 @@ func TestAMQPCommunication(t *testing.T) {
 
 		for {
 			select {
-			case p := <-i.privateRoute.consumer:
-				fmt.Println(i.state.Id.String()+" | Broadcast | Header:", p.Headers)
-				fmt.Println(i.state.Id.String() + " | Private | " + string(p.Body))
-				break
-			case b := <-i.broadcastRoute.consumer:
-				fmt.Println(i.state.Id.String()+" | Broadcast | Header:", b.Headers)
-				fmt.Println(i.state.Id.String() + " | Broadcast | " + string(b.Body))
+			case m := <-i.incoming:
+				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.Id.String(), m.Topic, m.Source, string(m.Packet.Data)))
 				break
 			}
 		}
@@ -70,6 +65,10 @@ func TestAMQPCommunication(t *testing.T) {
 	err := n1.Send([]byte(n1.state.Id.String()+": Hello there!"), "broadcast.all")
 	if err != nil {
 		t.Error("couldn't send message to exchange")
+	}
+
+	for {
+		select {}
 	}
 	// success with sending the message
 }
