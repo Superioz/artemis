@@ -132,75 +132,9 @@ func (i *AMQPInterface) Connect(url string) error {
 	i.incoming = make(chan *IncomingMessage)
 	i.outgoing = make(chan *OutgoingMessage)
 
-	// listen for input
-	go func(i *AMQPInterface) {
-		for {
-			if !i.state.Connected {
-				break
-			}
-
-			select {
-			case _ = <-i.notifyClose:
-				_ = i.Disconnect()
-				break
-			case broadcast := <-i.broadcastRoute.consumer:
-				m, err := convertMessage(broadcast, i.broadcastRoute)
-				if err != nil {
-					logger.Err("couldn't read message", err)
-					continue
-				}
-
-				// update last received timestamp
-				i.state.LastReceived = m.Time
-
-				// send to incoming if possible
-				select {
-				case i.incoming <- &m:
-				}
-				break
-			case private := <-i.privateRoute.consumer:
-				m, err := convertMessage(private, i.privateRoute)
-				if err != nil {
-					logger.Err("couldn't read message", err)
-					continue
-				}
-
-				// update last received timestamp
-				i.state.LastReceived = m.Time
-
-				// send to incoming if possible
-				select {
-				case i.incoming <- &m:
-				}
-				break
-			}
-		}
-	}(i)
-
-	// listen for output
-	go func(i *AMQPInterface) {
-		for outgoing := range i.outgoing {
-			if !i.state.Connected {
-				break
-			}
-
-			// header
-			table := amqp.Table{}
-			table["user-id"] = i.state.Id.String()
-
-			// update last sent
-			i.state.LastSent = time.Now()
-			err := i.channel.Publish(i.state.ExchangeKey, outgoing.RoutingKey, false, false,
-				amqp.Publishing{
-					Headers:     table,
-					ContentType: "text/plain",
-					Body:        outgoing.Data,
-				})
-			if err != nil {
-				break
-			}
-		}
-	}(i)
+	// listen for input/output
+	go i.listenToIncoming()
+	go i.listenToOutgoing()
 	return nil
 }
 
@@ -234,6 +168,77 @@ func (i *AMQPInterface) Send() chan<- *OutgoingMessage {
 // returns the read only packet channel for receiving
 func (i *AMQPInterface) Receive() <-chan *IncomingMessage {
 	return i.incoming
+}
+
+// listens for outgoing messages to sent to the broker
+func (i *AMQPInterface) listenToOutgoing() {
+	for outgoing := range i.outgoing {
+		if !i.state.Connected {
+			break
+		}
+
+		// header
+		table := amqp.Table{}
+		table["user-id"] = i.state.Id.String()
+
+		// update last sent
+		i.state.LastSent = time.Now()
+		err := i.channel.Publish(i.state.ExchangeKey, outgoing.RoutingKey, false, false,
+			amqp.Publishing{
+				Headers:     table,
+				ContentType: "text/plain",
+				Body:        outgoing.Data,
+			})
+		if err != nil {
+			break
+		}
+	}
+}
+
+// listens for incoming messages from the broker
+// or an error
+func (i *AMQPInterface) listenToIncoming() {
+	for {
+		if !i.state.Connected {
+			break
+		}
+
+		select {
+		case _ = <-i.notifyClose:
+			_ = i.Disconnect()
+			break
+		case broadcast := <-i.broadcastRoute.consumer:
+			m, err := convertMessage(broadcast, i.broadcastRoute)
+			if err != nil {
+				logger.Err("couldn't read message", err)
+				continue
+			}
+
+			// update last received timestamp
+			i.state.LastReceived = m.Time
+
+			// send to incoming if possible
+			select {
+			case i.incoming <- &m:
+			}
+			break
+		case private := <-i.privateRoute.consumer:
+			m, err := convertMessage(private, i.privateRoute)
+			if err != nil {
+				logger.Err("couldn't read message", err)
+				continue
+			}
+
+			// update last received timestamp
+			i.state.LastReceived = m.Time
+
+			// send to incoming if possible
+			select {
+			case i.incoming <- &m:
+			}
+			break
+		}
+	}
 }
 
 // converts received `Delivery` into a wrapper message struct.
