@@ -82,7 +82,8 @@ type State struct {
 // and this node.
 type Interface interface {
 	// connects the interface to the broker with `url`
-	// also sets the `CurrentBroker` of the `State`
+	// also handles initialization of the connection important
+	// values, which means channel and queue declaring, etc.
 	Connect(url string) error
 
 	// disconnects the interface from the broker
