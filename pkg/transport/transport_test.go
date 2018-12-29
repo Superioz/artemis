@@ -30,7 +30,7 @@ func TestNewPacket(t *testing.T) {
 // with multiple nodes.
 // Here we test it with 3 nodes and check if any error
 // occurs during the sending of the message
-func TestAMQPCommunication(t *testing.T) {
+func TestAMQPBroadcast(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -93,6 +93,71 @@ func TestAMQPCommunication(t *testing.T) {
 		t.Fatal("didn't receive expected amount of messages")
 	}
 	// success with sending the message
+}
+
+// makes sure that private messages get received by other nodes
+func TestAMQPPrivate(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	exchange := "artemis"
+	n1 := NewAMQPInterface(exchange)
+	n2 := NewAMQPInterface(exchange)
+
+	group := sync.WaitGroup{}
+	mutex := sync.Mutex{}
+
+	connected := 0
+	count := 0
+
+	run := func(i *AMQPInterface) {
+		err := i.Connect("amqp://guest:guest@localhost:5672")
+
+		if err == nil {
+			mutex.Lock()
+			connected++
+			mutex.Unlock()
+		}
+		group.Done()
+
+		// listens for incoming packet and simply debug a message
+		for {
+			select {
+			case m := <-i.incoming:
+				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.Id.String(), m.Topic, m.Source, string(m.Packet.Data)))
+
+				// count
+				mutex.Lock()
+				count++
+				mutex.Unlock()
+				break
+			}
+		}
+	}
+
+	group.Add(2)
+	go run(&n1)
+	go run(&n2)
+	group.Wait()
+
+	if connected < 2 {
+		t.Skip("couldn't connect to broker")
+	}
+	n1.Send() <- &OutgoingMessage{
+		RoutingKey: n2.state.Id.String(),
+		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
+	}
+
+	time.Sleep(2 * time.Second)
+
+	if !n1.State().Connected {
+		t.Fatal("node disconnected unexpectedly after sending message")
+	}
+	if count != 1 {
+		t.Fatal("didn't receive expected amount of messages")
+	}
+	// success
 }
 
 func startNodes(amount int, exchange string, run func(i *AMQPInterface)) {
