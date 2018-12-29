@@ -37,18 +37,22 @@ func TestAMQPCommunication(t *testing.T) {
 
 	exchange := "artemis"
 	n1 := NewAMQPInterface(exchange)
-	n2 := NewAMQPInterface(exchange)
-	n3 := NewAMQPInterface(exchange)
 
+	group := sync.WaitGroup{}
 	mutex := sync.Mutex{}
+
 	count := 0
+	connected := 0
 
 	run := func(i *AMQPInterface) {
 		err := i.Connect("amqp://guest:guest@localhost:5672")
 
-		if err != nil {
-			t.Skip("couldn't connect to test amqp broker")
+		if err == nil {
+			mutex.Lock()
+			connected++
+			mutex.Unlock()
 		}
+		group.Done()
 
 		// listens for incoming packet and simply debug a message
 		for {
@@ -65,14 +69,16 @@ func TestAMQPCommunication(t *testing.T) {
 		}
 	}
 
+	group.Add(1)
 	go run(&n1)
-	time.Sleep(2 * time.Second)
 
-	go run(&n2)
-	time.Sleep(2 * time.Second)
+	group.Add(2)
+	startNodes(2, exchange, run)
+	group.Wait()
 
-	go run(&n3)
-	time.Sleep(2 * time.Second)
+	if connected < 3 {
+		t.Skip("couldn't connect to broker")
+	}
 
 	n1.Send() <- &OutgoingMessage{
 		RoutingKey: "broadcast.all",
@@ -87,6 +93,14 @@ func TestAMQPCommunication(t *testing.T) {
 		t.Fatal("didn't receive expected amount of messages")
 	}
 	// success with sending the message
+}
+
+func startNodes(amount int, exchange string, run func(i *AMQPInterface)) {
+	for i := 0; i < amount; i++ {
+		n := NewAMQPInterface(exchange)
+
+		go run(&n)
+	}
 }
 
 // makes sure that the registry returns a new instance
