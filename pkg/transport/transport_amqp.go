@@ -60,7 +60,7 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 	id := uuid.NewV4()
 
 	return AMQPInterface{
-		state: &State{Id: id, ExchangeKey: exchange},
+		state: &State{id: id, exchangeKey: exchange},
 		broadcastRoute: amqpRoute{
 			topic:     BroadcastTopic,
 			queueName: fmt.Sprintf("%s_%s_%s", exchange, id.String(), broadcastKey),
@@ -79,7 +79,7 @@ func NewAMQPInterface(exchange string) AMQPInterface {
 // other parts of the connection such as the queues and the
 // exchange from amqp.
 func (i *AMQPInterface) Connect(url string) error {
-	if i.state.Connected {
+	if i.state.connected {
 		return fmt.Errorf("interface is already connected")
 	}
 
@@ -89,8 +89,8 @@ func (i *AMQPInterface) Connect(url string) error {
 		return err
 	}
 	i.connection = conn
-	i.state.CurrentBroker = url
-	i.state.Connected = true
+	i.state.currentBroker = url
+	i.state.connected = true
 	logger.Info("Connected to amqp.")
 
 	i.notifyClose = conn.NotifyClose(make(chan *amqp.Error))
@@ -105,7 +105,7 @@ func (i *AMQPInterface) Connect(url string) error {
 	logger.Info("Opened channel to amqp.")
 
 	// check exchange
-	err = ch.ExchangeDeclare(i.state.ExchangeKey, exchangeKind, false,
+	err = ch.ExchangeDeclare(i.state.exchangeKey, exchangeKind, false,
 		true, false, false, nil)
 	if err != nil {
 		_ = i.Disconnect()
@@ -142,13 +142,13 @@ func (i *AMQPInterface) Connect(url string) error {
 // returns an error, if the connection is already closed
 // or if there is any connection issue
 func (i *AMQPInterface) Disconnect() error {
-	if !i.state.Connected {
+	if !i.state.connected {
 		return fmt.Errorf("already disconnected from broker")
 	}
 
 	err := i.connection.Close()
-	i.state.CurrentBroker = ""
-	i.state.Connected = false
+	i.state.currentBroker = ""
+	i.state.connected = false
 	close(i.incoming)
 	close(i.outgoing)
 	logger.Info("Disconnected from amqp.")
@@ -156,8 +156,8 @@ func (i *AMQPInterface) Disconnect() error {
 }
 
 // returns the current interface state
-func (i *AMQPInterface) State() State {
-	return *i.state
+func (i *AMQPInterface) State() *State {
+	return i.state
 }
 
 // returns the write only packet channel for sending.
@@ -173,17 +173,17 @@ func (i *AMQPInterface) Receive() <-chan *IncomingMessage {
 // listens for outgoing messages to sent to the broker
 func (i *AMQPInterface) listenToOutgoing() {
 	for outgoing := range i.outgoing {
-		if !i.state.Connected {
+		if !i.state.connected {
 			break
 		}
 
 		// header
 		table := amqp.Table{}
-		table["user-id"] = i.state.Id.String()
+		table["user-id"] = i.state.id.String()
 
 		// update last sent
-		i.state.LastSent = time.Now()
-		err := i.channel.Publish(i.state.ExchangeKey, outgoing.RoutingKey, false, false,
+		i.state.lastSent = time.Now()
+		err := i.channel.Publish(i.state.exchangeKey, outgoing.RoutingKey, false, false,
 			amqp.Publishing{
 				Headers:     table,
 				ContentType: "text/plain",
@@ -199,7 +199,7 @@ func (i *AMQPInterface) listenToOutgoing() {
 // or an error
 func (i *AMQPInterface) listenToIncoming() {
 	for {
-		if !i.state.Connected {
+		if !i.state.connected {
 			break
 		}
 
@@ -215,7 +215,7 @@ func (i *AMQPInterface) listenToIncoming() {
 			}
 
 			// update last received timestamp
-			i.state.LastReceived = m.Time
+			i.state.lastReceived = m.Time
 
 			// send to incoming if possible
 			select {
@@ -230,7 +230,7 @@ func (i *AMQPInterface) listenToIncoming() {
 			}
 
 			// update last received timestamp
-			i.state.LastReceived = m.Time
+			i.state.lastReceived = m.Time
 
 			// send to incoming if possible
 			select {
@@ -269,7 +269,7 @@ func convertMessage(d amqp.Delivery, route amqpRoute) (IncomingMessage, error) {
 // creates and binds a queue for given `topic`.
 // returns an error if anything goes wrong, otherwise `nil`.
 func (i *AMQPInterface) declareQueue(topic *amqpRoute) error {
-	if !i.state.Connected {
+	if !i.state.connected {
 		return fmt.Errorf("interface is not connected")
 	}
 	q, err := i.channel.QueueDeclare(topic.queueName, false, true,
@@ -280,7 +280,7 @@ func (i *AMQPInterface) declareQueue(topic *amqpRoute) error {
 	topic.queue = q
 
 	// binds the queue to the exchange
-	err = i.channel.QueueBind(q.Name, topic.topic, i.state.ExchangeKey, false, nil)
+	err = i.channel.QueueBind(q.Name, topic.topic, i.state.exchangeKey, false, nil)
 	if err != nil {
 		return err
 	}

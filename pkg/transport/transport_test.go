@@ -58,7 +58,7 @@ func TestAMQPBroadcast(t *testing.T) {
 		for {
 			select {
 			case m := <-i.incoming:
-				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.Id.String(), m.Topic, m.Source, string(m.Packet.Data)))
+				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.id.String(), m.Topic, m.Source, string(m.Packet.Data)))
 
 				// count
 				mutex.Lock()
@@ -82,11 +82,11 @@ func TestAMQPBroadcast(t *testing.T) {
 
 	n1.Send() <- &OutgoingMessage{
 		RoutingKey: "broadcast.all",
-		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
+		Data:       []byte(n1.state.id.String() + ": Hello there!"),
 	}
 	time.Sleep(2 * time.Second)
 
-	if !n1.State().Connected {
+	if !n1.State().connected {
 		t.Fatal("node disconnected unexpectedly after sending message")
 	}
 	if count < 3 {
@@ -125,7 +125,7 @@ func TestAMQPPrivate(t *testing.T) {
 		for {
 			select {
 			case m := <-i.incoming:
-				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.Id.String(), m.Topic, m.Source, string(m.Packet.Data)))
+				fmt.Println(fmt.Sprintf("{%s, %s, %s, %s}", i.state.id.String(), m.Topic, m.Source, string(m.Packet.Data)))
 
 				// count
 				mutex.Lock()
@@ -145,13 +145,13 @@ func TestAMQPPrivate(t *testing.T) {
 		t.Skip("couldn't connect to broker")
 	}
 	n1.Send() <- &OutgoingMessage{
-		RoutingKey: n2.state.Id.String(),
-		Data:       []byte(n1.state.Id.String() + ": Hello there!"),
+		RoutingKey: n2.state.id.String(),
+		Data:       []byte(n1.state.id.String() + ": Hello there!"),
 	}
 
 	time.Sleep(2 * time.Second)
 
-	if !n1.State().Connected {
+	if !n1.State().connected {
 		t.Fatal("node disconnected unexpectedly after sending message")
 	}
 	if count != 1 {

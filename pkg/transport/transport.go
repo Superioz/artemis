@@ -49,33 +49,53 @@ type State struct {
 	// the unique id of the interface.
 	// used to uniquely access interfaces in the
 	// broker exchange.
-	Id uuid.UUID
+	id uuid.UUID
 
 	// The key for specifying which exchange to use.
 	// This is especially useful for amqp, as `exchange` itself has
 	// a specific meaning there. Otherwise, this is just a
 	// key to determine which i/o the interface is listening
 	// to.
-	ExchangeKey string
+	exchangeKey string
 
 	// the url of the current broker the `Interface` is
 	// connected to.
 	// `len(x) = 0` if not connected.
-	CurrentBroker string
+	currentBroker string
 
 	// the connection state
 	// `true` = is currently connected to a broker.
-	Connected bool
+	connected bool
 
 	// the timestamp this interface last sent a packet
 	// to the broker.
 	// `nil` = no outgoing packet yet
-	LastSent time.Time
+	lastSent time.Time
 
 	// the timestamp this interface last received a packet
 	// from the broker.
 	// `nil` = no incoming packet yet
-	LastReceived time.Time
+	lastReceived time.Time
+}
+
+func (s *State) Id() uuid.UUID {
+	return s.id
+}
+
+func (s *State) CurrentBroker() string {
+	return s.currentBroker
+}
+
+func (s *State) Connected() bool {
+	return s.connected
+}
+
+func (s *State) LastSent() time.Time {
+	return s.lastSent
+}
+
+func (s *State) LastReceived() time.Time {
+	return s.lastReceived
 }
 
 // represents the connection interface between the messaging broker
@@ -91,7 +111,7 @@ type Interface interface {
 
 	// the current state of the connection
 	// `State#Connected` = false if not connected.
-	State() State
+	State() *State
 
 	// returns a channel pipeline for this -v
 	// sends a slice of bytes to given topic.
