@@ -1,5 +1,5 @@
 syntax = "proto3";
-package protobuf;
+package protocol;
 
 /*
  Represents an entry which is stored in the log.

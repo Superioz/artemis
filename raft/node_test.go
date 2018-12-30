@@ -1,6 +1,9 @@
 package raft
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // makes sure that a node can be elected as
 // leader. In this test we focus on the election timeout
@@ -9,6 +12,11 @@ import "testing"
 func TestNodeElection(t *testing.T) {
 	node := NewNode()
 	go node.Up("amqp://guest:guest@localhost:5672")
+
+	node2 := NewNode()
+	node2.Inactive = true
+	fmt.Println("Inactive is: " + node2.id.String())
+	go node2.Up("amqp://guest:guest@localhost:5672")
 
 	for {
 		select {}

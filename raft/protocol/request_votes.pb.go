@@ -3,11 +3,9 @@
 
 package protocol
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -18,32 +16,32 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 //
-//In raft there are three states: follower, candidate and leader.
-//If the follower's election timeout times out he will begin to
-//start an election. Now the follower becomes a candidate and sends
-//this `RequestVoteCall` to every other node listening to the broadcast
-//topic.
-//He wants to gain the majority of votes, of course, he votes for
-//himself first. After he received x `RequestVoteRespond`s, he can tell
-//if he won the election or not. e.g.: 2/5 votes is not enough, but 3/5 is.
+// In raft there are three states: follower, candidate and leader.
+// If the follower's election timeout times out he will begin to
+// start an election. Now the follower becomes a candidate and sends
+// this `RequestVoteCall` to every other node listening to the broadcast
+// topic.
+// He wants to gain the majority of votes, of course, he votes for
+// himself first. After he received x `RequestVoteRespond`s, he can tell
+// if he won the election or not. e.g.: 2/5 votes is not enough, but 3/5 is.
 //
-//After he won the election, he is the new leader and sends a heartbeat to tell
-//everyone. Thereafter the normal process starts again.
+// After he won the election, he is the new leader and sends a heartbeat to tell
+// everyone. Thereafter the normal process starts again.
 //
-//To decide if the vote can be granted or not, there is a rule:
-//false if..
-//- ..the `term` of the candidate is less than the term of the call receiver
-//- ..the call receiver already voted for someone besides this `candidateId`
-//- ..the `lastLogIndex` or the `lastLogTerm` is less than the last log index and
-//term of the call receiver
-//true if..
-//- ..the `term` of the candidate is higher than the term of the receiver
-//- ..the call receiver already votes for this candidate or voted for nobody
-//- ..the `lastLogIndex` or the `lastLogTerm` is at least equals to the last log index and
-//term of the call receiver
+// To decide if the vote can be granted or not, there is a rule:
+// false if..
+// - ..the `term` of the candidate is less than the term of the call receiver
+// - ..the call receiver already voted for someone besides this `candidateId`
+// - ..the `lastLogIndex` or the `lastLogTerm` is less than the last log index and
+// term of the call receiver
+// true if..
+// - ..the `term` of the candidate is higher than the term of the receiver
+// - ..the call receiver already votes for this candidate or voted for nobody
+// - ..the `lastLogIndex` or the `lastLogTerm` is at least equals to the last log index and
+// term of the call receiver
 type RequestVoteCall struct {
 	// current term of the candidate
 	Term uint64 `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
@@ -62,17 +60,16 @@ func (m *RequestVoteCall) Reset()         { *m = RequestVoteCall{} }
 func (m *RequestVoteCall) String() string { return proto.CompactTextString(m) }
 func (*RequestVoteCall) ProtoMessage()    {}
 func (*RequestVoteCall) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5afbe2cbd34751c5, []int{0}
+	return fileDescriptor_request_votes_c450a8acb6362ae1, []int{0}
 }
-
 func (m *RequestVoteCall) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RequestVoteCall.Unmarshal(m, b)
 }
 func (m *RequestVoteCall) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RequestVoteCall.Marshal(b, m, deterministic)
 }
-func (m *RequestVoteCall) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RequestVoteCall.Merge(m, src)
+func (dst *RequestVoteCall) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RequestVoteCall.Merge(dst, src)
 }
 func (m *RequestVoteCall) XXX_Size() int {
 	return xxx_messageInfo_RequestVoteCall.Size(m)
@@ -112,15 +109,15 @@ func (m *RequestVoteCall) GetLastLogTerm() uint64 {
 }
 
 //
-//If a candidate starts an election every node receives a `RequestVoteCall`.
-//This message is for responding to the vote call and telling the candidate
-//if this node votes for him or not.
+// If a candidate starts an election every node receives a `RequestVoteCall`.
+// This message is for responding to the vote call and telling the candidate
+// if this node votes for him or not.
 //
-//The node returns a respond with its current term and if it grants the vote
-//or not. `VoteGranted` is true if the node votes for the candidate, otherwise false.
+// The node returns a respond with its current term and if it grants the vote
+// or not. `voteGranted` is true if the node votes for the candidate, otherwise false.
 type RequestVoteRespond struct {
 	// current term of the node sending this respond
-	Term uint32 `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
+	Term uint64 `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
 	// true if the node grants the vote for the candidate
 	VoteGranted          bool     `protobuf:"varint,2,opt,name=voteGranted,proto3" json:"voteGranted,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -132,17 +129,16 @@ func (m *RequestVoteRespond) Reset()         { *m = RequestVoteRespond{} }
 func (m *RequestVoteRespond) String() string { return proto.CompactTextString(m) }
 func (*RequestVoteRespond) ProtoMessage()    {}
 func (*RequestVoteRespond) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5afbe2cbd34751c5, []int{1}
+	return fileDescriptor_request_votes_c450a8acb6362ae1, []int{1}
 }
-
 func (m *RequestVoteRespond) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RequestVoteRespond.Unmarshal(m, b)
 }
 func (m *RequestVoteRespond) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RequestVoteRespond.Marshal(b, m, deterministic)
 }
-func (m *RequestVoteRespond) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RequestVoteRespond.Merge(m, src)
+func (dst *RequestVoteRespond) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RequestVoteRespond.Merge(dst, src)
 }
 func (m *RequestVoteRespond) XXX_Size() int {
 	return xxx_messageInfo_RequestVoteRespond.Size(m)
@@ -153,7 +149,7 @@ func (m *RequestVoteRespond) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RequestVoteRespond proto.InternalMessageInfo
 
-func (m *RequestVoteRespond) GetTerm() uint32 {
+func (m *RequestVoteRespond) GetTerm() uint64 {
 	if m != nil {
 		return m.Term
 	}
@@ -172,10 +168,10 @@ func init() {
 	proto.RegisterType((*RequestVoteRespond)(nil), "protobuf.RequestVoteRespond")
 }
 
-func init() { proto.RegisterFile("request_votes.proto", fileDescriptor_5afbe2cbd34751c5) }
+func init() { proto.RegisterFile("request_votes.proto", fileDescriptor_request_votes_c450a8acb6362ae1) }
 
-var fileDescriptor_5afbe2cbd34751c5 = []byte{
-	// 181 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_request_votes_c450a8acb6362ae1 = []byte{
+	// 178 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2e, 0x4a, 0x2d, 0x2c,
 	0x4d, 0x2d, 0x2e, 0x89, 0x2f, 0xcb, 0x2f, 0x49, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17,
 	0xe2, 0x00, 0x53, 0x49, 0xa5, 0x69, 0x4a, 0xbd, 0x8c, 0x5c, 0xfc, 0x41, 0x10, 0x15, 0x61, 0xf9,
@@ -184,8 +180,8 @@ var fileDescriptor_5afbe2cbd34751c5 = []byte{
 	0x4a, 0x62, 0x49, 0xaa, 0x67, 0x8a, 0x04, 0x93, 0x02, 0xa3, 0x06, 0x67, 0x10, 0xb2, 0x90, 0x90,
 	0x12, 0x17, 0x4f, 0x4e, 0x62, 0x71, 0x89, 0x4f, 0x7e, 0xba, 0x67, 0x5e, 0x4a, 0x6a, 0x85, 0x04,
 	0x33, 0x58, 0x37, 0x8a, 0x18, 0xc8, 0x14, 0x28, 0x3f, 0x04, 0x64, 0x01, 0x0b, 0x58, 0x09, 0xb2,
-	0x90, 0x92, 0x17, 0x97, 0x10, 0x92, 0x73, 0x82, 0x52, 0x8b, 0x0b, 0xf2, 0xf3, 0x52, 0x50, 0x5c,
-	0xc4, 0x8b, 0x70, 0x11, 0xc8, 0x4b, 0xee, 0x45, 0x89, 0x79, 0x25, 0xa9, 0x10, 0x17, 0x71, 0x04,
-	0x21, 0x0b, 0x25, 0xb1, 0x81, 0x7d, 0x69, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0xcc, 0xe8, 0xf9,
-	0xe0, 0x03, 0x01, 0x00, 0x00,
+	0x90, 0x92, 0x17, 0x97, 0x10, 0x92, 0x73, 0x82, 0x52, 0x8b, 0x0b, 0xf2, 0xf3, 0x52, 0x70, 0xb9,
+	0x08, 0xe4, 0x25, 0xf7, 0xa2, 0xc4, 0xbc, 0x92, 0x54, 0x88, 0x8b, 0x38, 0x82, 0x90, 0x85, 0x92,
+	0xd8, 0xc0, 0xbe, 0x34, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xc1, 0xaa, 0x46, 0xce, 0x03, 0x01,
+	0x00, 0x00,
 }

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package protobuf;
+package protocol;
 
 /*
  In raft there are three states: follower, candidate and leader.
@@ -50,7 +50,7 @@ message RequestVoteCall {
  */
 message RequestVoteRespond {
     // current term of the node sending this respond
-    uint32 term = 1;
+    uint64 term = 1;
 
     // true if the node grants the vote for the candidate
     bool voteGranted = 2;

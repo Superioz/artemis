@@ -17,6 +17,11 @@ func init() {
 // returns the respective proto message of
 // given `id`
 func FromId(id uint16) proto.Message {
+	reg := registry[id]
+	if reg == nil {
+		return nil
+	}
+
 	val := reflect.ValueOf(registry[id])
 	if val.Kind() == reflect.Ptr {
 		val = reflect.Indirect(val)

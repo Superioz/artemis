@@ -211,7 +211,13 @@ func (i *AMQPInterface) listenToIncoming() {
 			m, err := convertMessage(broadcast, i.broadcastRoute)
 			if err != nil {
 				logger.Err("couldn't read message", err)
-				continue
+				break
+			}
+
+			// if he receives the broadcast from himself:
+			// ignore it
+			if m.Source == i.state.id {
+				break
 			}
 
 			// update last received timestamp

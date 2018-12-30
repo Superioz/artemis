@@ -29,6 +29,9 @@ type Packet struct {
 	// the actual data inside the packet.
 	// this slice of data is the encoded byte slice
 	// of the protobuf messages.
+	Body []byte
+
+	// the whole data set which includes id and content
 	Data []byte
 }
 
@@ -39,7 +42,7 @@ func NewPacket(data []byte) (Packet, error) {
 	if err != nil {
 		return Packet{}, err
 	}
-	return Packet{Id: id, Data: buf.Bytes()}, nil
+	return Packet{Id: id, Body: buf.Bytes(), Data: data}, nil
 }
 
 // represents the current state this transporter is in.
@@ -152,7 +155,7 @@ type OutgoingMessage struct {
 // unmarshalls given bytes
 // fetches the packet id of the data and unmarshals
 // the rest of the data into a `proto.Message`
-func Unmarshal(data []byte) (proto.Message, error) {
+func Decode(data []byte) (proto.Message, error) {
 	p, err := NewPacket(data)
 	if err != nil {
 		return nil, err
@@ -163,7 +166,7 @@ func Unmarshal(data []byte) (proto.Message, error) {
 		return nil, fmt.Errorf("packet with id %d does not exist", p.Id)
 	}
 
-	err = proto.Unmarshal(p.Data, m)
+	err = proto.Unmarshal(p.Body, m)
 
 	if err != nil {
 		return nil, err
@@ -172,7 +175,7 @@ func Unmarshal(data []byte) (proto.Message, error) {
 }
 
 // marshals given message into its packet id and message
-func Marshal(pb proto.Message) ([]byte, error) {
+func Encode(pb proto.Message) ([]byte, error) {
 	if pb == nil {
 		return nil, fmt.Errorf("message is null")
 	}
