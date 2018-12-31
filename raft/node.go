@@ -17,7 +17,8 @@ const (
 	Candidate = "candidate"
 	Leader    = "leader"
 
-	exchange = "artemis"
+	exchange       = "artemis"
+	broadcastRoute = "broadcast.all"
 
 	defaultHeartbeat       = 1500 // in ms, def: 50
 	defaultElectionTimeout = 2000 // in ms, def: 150
@@ -43,8 +44,7 @@ type Node struct {
 	heartbeatInterval time.Duration
 	electionTimeout   time.Duration
 
-	// TODO test value
-	Inactive bool
+	Passive bool
 }
 
 func NewNode() Node {
@@ -113,23 +113,21 @@ followerLoop:
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
-				// TODO if requestvote: check if voteFor != null
+				// * check if he can grant the vote and respond with
+				// his answer.
+
 				fmt.Println(n.id.String()+" | Follower: Received request vote: ", m)
 
-				d, _ := transport.Encode(&protocol.RequestVoteRespond{
-					Term:        n.currentTerm,
-					VoteGranted: n.processVoteRequest(*m.(*protocol.RequestVoteCall)),
-				})
-				om := transport.OutgoingMessage{
-					RoutingKey: p.Source.String(),
-					Data:       d,
-				}
-				n.transport.Send() <- &om
+				n.responseRequestVote(*m.(*protocol.RequestVoteCall), p.Source.String())
 				break
 			case *protocol.RequestVoteRespond:
-				// ignore
+				// * ignore as followers can't process this packet. only
+				// candidates can.
 				break
 			case *protocol.AppendEntriesCall:
+				// * the leader sends an append entries call, so
+				// update the leader and reset the timeout.
+
 				appendEntr := *m.(*protocol.AppendEntriesCall)
 
 				// reset timeout
@@ -142,18 +140,20 @@ followerLoop:
 				// TODO if append entries: appendentries
 				break
 			case *protocol.AppendEntriesRespond:
-				// ignore
+				// * ignore as followers can't process this packet. only
+				// the leader can.
 				break
 			}
 			break
 		case <-tc.C:
+			// * timeout and try to become leader by sending request votes
+			// also step up to being candidate
 			fmt.Printf(n.id.String()+" | Follower: Timeout! (After %s)\n", timeout)
 
-			// TODO remove test value
-			if n.Inactive {
+			// if the node is only passive, don't try to ever get leader
+			if n.Passive {
 				break followerLoop
 			}
-			// TODO set state to candidate and send request vote rpc's
 			n.state = Candidate
 			break
 		}
@@ -163,34 +163,21 @@ followerLoop:
 func (n *Node) candidateLoop() {
 	timeout := n.generateTimeout()
 
-	tc := time.NewTimer(timeout)
-	pc := n.transport.Receive()
-	hb := time.NewTicker(n.heartbeatInterval * time.Millisecond)
+	timeoutTimer := time.NewTimer(timeout)
+	packetChan := n.transport.Receive()
+	hardBeetTimer := time.NewTicker(n.heartbeatInterval * time.Millisecond)
 
-	// increment term
+	// increment term and vote for himself
 	n.currentTerm++
 	n.votedFor = n.id
 
-	// send packet
-	sendp := func() {
-		d, _ := transport.Encode(&protocol.RequestVoteCall{
-			Term:         n.currentTerm,
-			CandidateId:  n.id.String(),
-			LastLogIndex: n.log.LastLogEntry().Index,
-			LastLogTerm:  n.log.LastLogEntry().Term,
-		})
-		m := transport.OutgoingMessage{
-			RoutingKey: "broadcast.all",
-			Data:       d,
-		}
-		n.transport.Send() <- &m
-	}
-	sendp()
+	// send request vote packet function
+	n.sendRequestVote()
 
 candidateLoop:
 	for n.state == Candidate {
 		select {
-		case p := <-pc:
+		case p := <-packetChan:
 			fmt.Println(n.id.String()+" | Candidate: Received packet: ", p)
 
 			m, err := transport.Decode(p.Packet.Data)
@@ -201,7 +188,9 @@ candidateLoop:
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
+				// * sent back false, as we already voted for ourself
 
+				n.responseRequestVote(*m.(*protocol.RequestVoteCall), p.Source.String())
 				break
 			case *protocol.RequestVoteRespond:
 				// TODO count negative and positive responds and calculate if he got the majority ..
@@ -210,30 +199,44 @@ candidateLoop:
 				fmt.Println(n.id.String() + " | Leader: Received vote.")
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
-				// TODO oh, there is already a leader? le me step back!
+				// * step back from being candidate, as there is already a leader
+				// sending append entries.
+				// * also reset timeout
+
+				appendEntr := *m.(*protocol.AppendEntriesCall)
+
+				// reset timeout
+				timeout = n.generateTimeout()
+				timeoutTimer.Reset(timeout)
+
+				// set leader
+				n.leader, _ = uuid.FromString(appendEntr.LeaderId)
+
+				n.state = Follower
 				break
 			case *protocol.AppendEntriesRespond:
-
+				// * ignore packet, as we are a candidate and can't
+				// process these packets. Only the leader can.
 				break
 			}
-			// TODO if AppendEntries -> go back to being follower
-			// TODO if RequestVote -> return false, as voteFor != null
 			break
-		case <-tc.C:
+		case <-timeoutTimer.C:
+			// * begin a new term and try again receiving votes.
+
 			fmt.Printf(n.id.String()+" | Candidate: Timeout! (After %s)\n", timeout)
-
-			// TODO set state back to candidate and resent the packets ..
 			break candidateLoop
-		case <-hb.C:
-			fmt.Println(n.id.String() + " | Candidate: Heartbeat!")
-			sendp()
+		case <-hardBeetTimer.C:
+			// * try again to receive votes from followers, cause maybe not every follower
+			// received the packet or responded yet.
 
+			fmt.Println(n.id.String() + " | Candidate: Heartbeat!")
+			n.sendRequestVote()
 			break
 		}
 	}
 
-	tc.Stop()
-	hb.Stop()
+	timeoutTimer.Stop()
+	hardBeetTimer.Stop()
 }
 
 func (n *Node) leaderLoop() {
@@ -241,23 +244,7 @@ func (n *Node) leaderLoop() {
 	hb := time.NewTicker(n.heartbeatInterval * time.Millisecond)
 
 	// send packet
-	sendp := func() {
-		lastEntry := n.log.LastLogEntry()
-		d, _ := transport.Encode(&protocol.AppendEntriesCall{
-			Term:         n.currentTerm,
-			LeaderId:     n.id.String(),
-			PrevLogIndex: lastEntry.Index,
-			PrevLogTerm:  lastEntry.Term,
-			Entries:      []*protocol.AppendEntry{},
-			CommitIndex:  n.commitIndex,
-		})
-		m := transport.OutgoingMessage{
-			RoutingKey: "broadcast.all",
-			Data:       d,
-		}
-		n.transport.Send() <- &m
-	}
-	sendp()
+	n.sendHeartbeat()
 
 	for n.state == Leader {
 		select {
@@ -282,9 +269,10 @@ func (n *Node) leaderLoop() {
 			}
 			break
 		case <-hb.C:
+			// * send normal heartbeat with no information
+			// just to keep his authority.
 			fmt.Println(n.id.String() + " | Leader: Heartbeat!")
-			sendp()
-
+			n.sendHeartbeat()
 			break
 		}
 	}
@@ -300,13 +288,55 @@ func (n *Node) generateTimeout() time.Duration {
 	return time.Duration(timeout) * time.Millisecond
 }
 
-func (n *Node) processVoteRequest(req protocol.RequestVoteCall) bool {
-	if req.Term < n.currentTerm {
-		return false
+func (n *Node) sendRequestVote() {
+	d, _ := transport.Encode(&protocol.RequestVoteCall{
+		Term:         n.currentTerm,
+		CandidateId:  n.id.String(),
+		LastLogIndex: n.log.LastLogEntry().Index,
+		LastLogTerm:  n.log.LastLogEntry().Term,
+	})
+	m := transport.OutgoingMessage{
+		RoutingKey: broadcastRoute,
+		Data:       d,
 	}
+	n.transport.Send() <- &m
+}
+
+func (n *Node) responseRequestVote(req protocol.RequestVoteCall, source string) {
+	var res bool
+
 	if n.votedFor != uuid.Nil {
-		return n.votedFor.String() == req.CandidateId
+		res = n.votedFor.String() == req.CandidateId
+	} else if req.Term < n.currentTerm {
+		res = false
 	}
 	lle := n.log.LastLogEntry()
-	return req.LastLogIndex >= lle.Index && req.LastLogTerm >= lle.Term
+	res = req.LastLogIndex >= lle.Index && req.LastLogTerm >= lle.Term
+
+	d, _ := transport.Encode(&protocol.RequestVoteRespond{
+		Term:        n.currentTerm,
+		VoteGranted: res,
+	})
+	om := transport.OutgoingMessage{
+		RoutingKey: source,
+		Data:       d,
+	}
+	n.transport.Send() <- &om
+}
+
+func (n *Node) sendHeartbeat() {
+	lastEntry := n.log.LastLogEntry()
+	d, _ := transport.Encode(&protocol.AppendEntriesCall{
+		Term:         n.currentTerm,
+		LeaderId:     n.id.String(),
+		PrevLogIndex: lastEntry.Index,
+		PrevLogTerm:  lastEntry.Term,
+		Entries:      []*protocol.AppendEntry{},
+		CommitIndex:  n.commitIndex,
+	})
+	m := transport.OutgoingMessage{
+		RoutingKey: "broadcast.all",
+		Data:       d,
+	}
+	n.transport.Send() <- &m
 }
