@@ -15,7 +15,7 @@ func TestNodeElection(t *testing.T) {
 
 	node2 := NewNode()
 	node2.Passive = true
-	fmt.Println("Inactive is: " + node2.id.String())
+	fmt.Println("Passive is: " + node2.id.String())
 	go node2.Up("amqp://guest:guest@localhost:5672")
 
 	for {
