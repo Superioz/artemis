@@ -16,6 +16,9 @@ const (
 
 	// prefix for error logging messages
 	errLevel = "SEVERE"
+
+	// prefix for debug logging messages
+	debugLevel = "DEBUG"
 )
 
 // the default config of the logger. can be set with `SetConfig()`
@@ -23,6 +26,8 @@ var config Config = Config{
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
 	ShowTime: true,
+
+	Debug: true,
 }
 
 // logger config can be used to determine specific attributes.
@@ -31,6 +36,9 @@ type Config struct {
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
 	ShowTime bool
+
+	// debug mode activates debug messages
+	Debug bool
 }
 
 // sets the default logging config to the given config.
@@ -52,7 +60,14 @@ func formatMessage(message string, level string) string {
 // logs a message to a specific logging stream.
 // e.g.: ´log(os.Stdout, "Hello, World!", "INFO")`
 func log(stream *os.File, message string, level string, context []interface{}) {
-	_, err := fmt.Fprintln(stream, util.Insert(context, 0, formatMessage(message, level))...)
+	s, err := util.Insert(context, 0, formatMessage(message, level))
+	if err != nil {
+		// well, where do we log now? ¯\_(ツ)_/¯
+		// we doesn't want to stop the whole process either
+		fmt.Println("error while logging message", err)
+	}
+
+	_, err = fmt.Fprintln(stream, s.([]interface{})...)
 	if err != nil {
 		// well, where do we log now? ¯\_(ツ)_/¯
 		// we doesn't want to stop the whole process either
@@ -73,21 +88,35 @@ func logf(stream *os.File, format string, level string, context []interface{}) {
 }
 
 // log an info message to the standard output
-func Info(message string, context ... interface{}) {
+func Info(message string, context ...interface{}) {
 	log(os.Stdout, message, infoLevel, context)
 }
 
 // logs a formatted info message to the standard output
-func Infof(format string, context ... interface{}) {
+func Infof(format string, context ...interface{}) {
 	logf(os.Stdout, format, infoLevel, context)
 }
 
 // log an error message to the error output
-func Err(message string, context ... interface{}) {
+func Err(message string, context ...interface{}) {
 	log(os.Stderr, message, errLevel, context)
 }
 
 // logs a formatted error message to the error output
-func Errf(format string, context ... interface{}) {
+func Errf(format string, context ...interface{}) {
 	logf(os.Stderr, format, errLevel, context)
+}
+
+// log an error message to the error output
+func Debug(message string, context ...interface{}) {
+	if config.Debug {
+		log(os.Stdout, message, debugLevel, context)
+	}
+}
+
+// logs a formatted error message to the error output
+func Debugf(format string, context ...interface{}) {
+	if config.Debug {
+		logf(os.Stdout, format, debugLevel, context)
+	}
 }

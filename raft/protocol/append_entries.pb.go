@@ -3,11 +3,9 @@
 
 package protocol
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -18,18 +16,28 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 //
-//There are two cases where this message can be used: As heartbeat
-//and as call to replicate a log. But in each case only the leader
-//can send this packet, no other type of node.
+// There are two cases where this message can be used: As heartbeat
+// and as call to replicate a log. But in each case only the leader
+// can send this packet, no other type of node.
 //
-//If this message is being used as a heartbeat, the only thing different
-//to a call to replicate is that the `Entries` are empty. The rest stays
-//the same.
-//Otherwise if the `Entries` are at least of length one, than this message
-//serves as a call to replicate given entries/logs.
+// If this message is being used as a heartbeat, the only thing different
+// to a call to replicate is that the `Entries` are empty. The rest stays
+// the same.
+// Otherwise if the `Entries` are at least of length one, than this message
+// serves as a call to replicate given entries/logs.
+//
+// Heartbeat:
+// If used as a heartbeat, the `Entries` are empty. The heartbeat tells the other
+// nodes, that a leader is still in authority and the response tells the leader, if
+// the nodes are still existent as well and if the follower's log is correct.
+//
+// Replicate Logs:
+// In this case `Entries` can have a length of `x >= 1`.
+// If sent, the node has to try to append the given log entries.
+// Gets a respond if the operation has been successful.
 type AppendEntriesCall struct {
 	// term of the leader
 	Term uint64 `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
@@ -40,7 +48,7 @@ type AppendEntriesCall struct {
 	// term of the last log entry
 	PrevLogTerm uint64 `protobuf:"varint,4,opt,name=prevLogTerm,proto3" json:"prevLogTerm,omitempty"`
 	// the entries to be sent (empty for simple heartbeat)
-	Entries []*AppendEntry `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
+	Entries []*LogEntry `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
 	// index of the last commited log entry by the leader
 	CommitIndex          uint64   `protobuf:"varint,6,opt,name=commitIndex,proto3" json:"commitIndex,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -52,17 +60,16 @@ func (m *AppendEntriesCall) Reset()         { *m = AppendEntriesCall{} }
 func (m *AppendEntriesCall) String() string { return proto.CompactTextString(m) }
 func (*AppendEntriesCall) ProtoMessage()    {}
 func (*AppendEntriesCall) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5b4beeedbaf7b49a, []int{0}
+	return fileDescriptor_append_entries_01736bc091125a32, []int{0}
 }
-
 func (m *AppendEntriesCall) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppendEntriesCall.Unmarshal(m, b)
 }
 func (m *AppendEntriesCall) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppendEntriesCall.Marshal(b, m, deterministic)
 }
-func (m *AppendEntriesCall) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppendEntriesCall.Merge(m, src)
+func (dst *AppendEntriesCall) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppendEntriesCall.Merge(dst, src)
 }
 func (m *AppendEntriesCall) XXX_Size() int {
 	return xxx_messageInfo_AppendEntriesCall.Size(m)
@@ -101,7 +108,7 @@ func (m *AppendEntriesCall) GetPrevLogTerm() uint64 {
 	return 0
 }
 
-func (m *AppendEntriesCall) GetEntries() []*AppendEntry {
+func (m *AppendEntriesCall) GetEntries() []*LogEntry {
 	if m != nil {
 		return m.Entries
 	}
@@ -115,10 +122,17 @@ func (m *AppendEntriesCall) GetCommitIndex() uint64 {
 	return 0
 }
 
+//
+// This respond is being sent by a follower if it received an `AppendEntriesCall`.
+//
+// The `success` value is..
+// - ..false, if the term sent by the leader is less than the term of this follower node
+// - ..false, if log of follower doesn't contain entry with `prevLogIndex` AND `prevLogTerm`
+// - ..true, if the conditions above are both not true
 type AppendEntriesRespond struct {
 	// current term of the follower
 	Term uint64 `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
-	// true if follower contained log entry with `PrevLogIndex` and `PrevLogTerm`
+	// true if follower contained log entry with `prevLogIndex` and `prevLogTerm`
 	Success              bool     `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -129,17 +143,16 @@ func (m *AppendEntriesRespond) Reset()         { *m = AppendEntriesRespond{} }
 func (m *AppendEntriesRespond) String() string { return proto.CompactTextString(m) }
 func (*AppendEntriesRespond) ProtoMessage()    {}
 func (*AppendEntriesRespond) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5b4beeedbaf7b49a, []int{1}
+	return fileDescriptor_append_entries_01736bc091125a32, []int{1}
 }
-
 func (m *AppendEntriesRespond) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppendEntriesRespond.Unmarshal(m, b)
 }
 func (m *AppendEntriesRespond) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppendEntriesRespond.Marshal(b, m, deterministic)
 }
-func (m *AppendEntriesRespond) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppendEntriesRespond.Merge(m, src)
+func (dst *AppendEntriesRespond) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppendEntriesRespond.Merge(dst, src)
 }
 func (m *AppendEntriesRespond) XXX_Size() int {
 	return xxx_messageInfo_AppendEntriesRespond.Size(m)
@@ -164,69 +177,30 @@ func (m *AppendEntriesRespond) GetSuccess() bool {
 	return false
 }
 
-type AppendEntry struct {
-	// The content of the entry
-	Content              []byte   `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *AppendEntry) Reset()         { *m = AppendEntry{} }
-func (m *AppendEntry) String() string { return proto.CompactTextString(m) }
-func (*AppendEntry) ProtoMessage()    {}
-func (*AppendEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5b4beeedbaf7b49a, []int{2}
-}
-
-func (m *AppendEntry) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_AppendEntry.Unmarshal(m, b)
-}
-func (m *AppendEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_AppendEntry.Marshal(b, m, deterministic)
-}
-func (m *AppendEntry) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppendEntry.Merge(m, src)
-}
-func (m *AppendEntry) XXX_Size() int {
-	return xxx_messageInfo_AppendEntry.Size(m)
-}
-func (m *AppendEntry) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppendEntry.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_AppendEntry proto.InternalMessageInfo
-
-func (m *AppendEntry) GetContent() []byte {
-	if m != nil {
-		return m.Content
-	}
-	return nil
+func init() {
+	proto.RegisterType((*AppendEntriesCall)(nil), "protocol.AppendEntriesCall")
+	proto.RegisterType((*AppendEntriesRespond)(nil), "protocol.AppendEntriesRespond")
 }
 
 func init() {
-	proto.RegisterType((*AppendEntriesCall)(nil), "protobuf.AppendEntriesCall")
-	proto.RegisterType((*AppendEntriesRespond)(nil), "protobuf.AppendEntriesRespond")
-	proto.RegisterType((*AppendEntry)(nil), "protobuf.AppendEntry")
+	proto.RegisterFile("append_entries.proto", fileDescriptor_append_entries_01736bc091125a32)
 }
 
-func init() { proto.RegisterFile("append_entries.proto", fileDescriptor_5b4beeedbaf7b49a) }
-
-var fileDescriptor_5b4beeedbaf7b49a = []byte{
-	// 238 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x8f, 0x41, 0x4b, 0xc4, 0x30,
-	0x10, 0x85, 0xa9, 0x5b, 0x77, 0xeb, 0x74, 0x2f, 0x86, 0x15, 0x82, 0xa7, 0x92, 0x8b, 0x3d, 0x55,
-	0xd0, 0x5f, 0x20, 0xea, 0x61, 0xc1, 0x53, 0xf0, 0x2e, 0xdd, 0x64, 0x94, 0x85, 0x36, 0x09, 0x49,
-	0x56, 0xf4, 0xbf, 0xfa, 0x63, 0xa4, 0xd3, 0x8d, 0xb6, 0xb0, 0xa7, 0xe4, 0x0d, 0xdf, 0xbc, 0x79,
-	0x0f, 0x36, 0xad, 0x73, 0x68, 0xf4, 0x1b, 0x9a, 0xe8, 0xf7, 0x18, 0x1a, 0xe7, 0x6d, 0xb4, 0xac,
-	0xa0, 0x67, 0x77, 0x78, 0x17, 0x3f, 0x19, 0x5c, 0x3e, 0x10, 0xf2, 0x3c, 0x12, 0x8f, 0x6d, 0xd7,
-	0x31, 0x06, 0x79, 0x44, 0xdf, 0xf3, 0xac, 0xca, 0xea, 0x5c, 0xd2, 0x9f, 0x5d, 0x43, 0xd1, 0x61,
-	0xab, 0xd1, 0x6f, 0x35, 0x3f, 0xab, 0xb2, 0xfa, 0x42, 0xfe, 0x69, 0x26, 0x60, 0xed, 0x3c, 0x7e,
-	0xbe, 0xd8, 0x8f, 0xad, 0xd1, 0xf8, 0xc5, 0x17, 0xb4, 0x37, 0x9b, 0xb1, 0x0a, 0xca, 0xa3, 0x7e,
-	0x1d, 0xac, 0x73, 0x42, 0xa6, 0x23, 0x76, 0x0b, 0xab, 0x63, 0x4c, 0x7e, 0x5e, 0x2d, 0xea, 0xf2,
-	0xee, 0xaa, 0x49, 0x39, 0x9b, 0xff, 0x8c, 0xdf, 0x32, 0x51, 0x83, 0xa5, 0xb2, 0x7d, 0xbf, 0x8f,
-	0xe3, 0xd5, 0xe5, 0x68, 0x39, 0x19, 0x89, 0x27, 0xd8, 0xcc, 0xda, 0x49, 0x0c, 0xce, 0x1a, 0x7d,
-	0xb2, 0x20, 0x87, 0x55, 0x38, 0x28, 0x85, 0x21, 0x50, 0xbf, 0x42, 0x26, 0x29, 0x6e, 0xa0, 0x9c,
-	0xdc, 0x1f, 0x40, 0x65, 0x4d, 0x44, 0x13, 0x69, 0x7f, 0x2d, 0x93, 0xdc, 0x2d, 0x29, 0xef, 0xfd,
-	0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x7f, 0x0f, 0xd6, 0x17, 0x76, 0x01, 0x00, 0x00,
+var fileDescriptor_append_entries_01736bc091125a32 = []byte{
+	// 231 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x4f, 0xc1, 0x4a, 0xc3, 0x40,
+	0x10, 0x25, 0x36, 0xb6, 0x71, 0x2a, 0x88, 0x43, 0x0f, 0x4b, 0x4f, 0x21, 0xa7, 0x1c, 0x24, 0x07,
+	0xfd, 0x02, 0x51, 0x0f, 0x85, 0x9e, 0x16, 0xef, 0x12, 0xb3, 0x43, 0x28, 0x6c, 0x32, 0xcb, 0x6e,
+	0x14, 0xfb, 0xa9, 0xfe, 0x8d, 0x64, 0xb6, 0x91, 0x06, 0x7a, 0xda, 0x7d, 0x6f, 0xe6, 0xbd, 0x79,
+	0x0f, 0x36, 0xb5, 0x73, 0xd4, 0x9b, 0x0f, 0xea, 0x07, 0x7f, 0xa0, 0x50, 0x39, 0xcf, 0x03, 0x63,
+	0x26, 0x4f, 0xc3, 0x76, 0x7b, 0x67, 0xb9, 0x95, 0xe1, 0x31, 0x8e, 0x8a, 0xdf, 0x04, 0xee, 0x9f,
+	0x45, 0xf3, 0x16, 0x25, 0x2f, 0xb5, 0xb5, 0x88, 0x90, 0x0e, 0xe4, 0x3b, 0x95, 0xe4, 0x49, 0x99,
+	0x6a, 0xf9, 0xe3, 0x16, 0x32, 0x4b, 0xb5, 0x21, 0xbf, 0x33, 0xea, 0x2a, 0x4f, 0xca, 0x1b, 0xfd,
+	0x8f, 0xb1, 0x80, 0x5b, 0xe7, 0xe9, 0x7b, 0xcf, 0xed, 0xae, 0x37, 0xf4, 0xa3, 0x16, 0xa2, 0x9b,
+	0x71, 0x98, 0xc3, 0xfa, 0x84, 0xdf, 0x47, 0xeb, 0x54, 0x56, 0xce, 0x29, 0x7c, 0x80, 0xd5, 0x29,
+	0xb7, 0xba, 0xce, 0x17, 0xe5, 0xfa, 0x11, 0xab, 0x29, 0x78, 0xb5, 0xe7, 0x76, 0x0c, 0x78, 0xd4,
+	0xd3, 0xca, 0xe8, 0xd7, 0x70, 0xd7, 0x1d, 0x86, 0x78, 0x72, 0x19, 0xfd, 0xce, 0xa8, 0xe2, 0x15,
+	0x36, 0xb3, 0x6a, 0x9a, 0x82, 0xe3, 0xde, 0x5c, 0x6c, 0xa7, 0x60, 0x15, 0xbe, 0x9a, 0x86, 0x42,
+	0x90, 0x72, 0x99, 0x9e, 0xe0, 0xe7, 0x52, 0x32, 0x3c, 0xfd, 0x05, 0x00, 0x00, 0xff, 0xff, 0x7e,
+	0xd5, 0x0b, 0x8c, 0x5b, 0x01, 0x00, 0x00,
 }
