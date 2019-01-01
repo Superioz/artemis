@@ -15,6 +15,16 @@ type LogState struct {
 	Size      int
 }
 
+// checks if an entry at given index with given term
+// exists.
+func (l *Log) HasEntry(logIndex uint64, logTerm uint64) bool {
+	if int(logIndex) >= len(l.entries) {
+		return false
+	}
+	e := l.entries[logIndex]
+	return e != nil && e.Term == logTerm
+}
+
 // mirrors the current state of the log
 // with replicating the information about
 // the state.

@@ -8,7 +8,6 @@ import (
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
 	"github.com/superioz/artemis/raft/protocol"
-	"reflect"
 	"time"
 )
 
@@ -70,7 +69,7 @@ func NewNode() Node {
 func (n *Node) Up(brokerUrl string) {
 	err := n.transport.Connect(brokerUrl)
 	if err != nil || !n.transport.State().Connected() {
-		logrus.Error(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
+		logrus.Errorln(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
 		return
 	}
 
@@ -107,7 +106,7 @@ followerLoop:
 		case p := <-pc:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logrus.Error("couldn't decode packet", err)
+				logrus.Errorln("couldn't decode packet", err)
 				break
 			}
 
@@ -120,7 +119,7 @@ followerLoop:
 
 				logrus.Debugln("follower.vote.req.inc", n.id, m)
 
-				n.responseRequestVote(reqVote, p.Source.String())
+				n.processRequestVote(reqVote, p.Source.String())
 				break
 			case *protocol.RequestVoteRespond:
 				// * ignore as followers can't process this packet. only
@@ -133,37 +132,13 @@ followerLoop:
 				appendEntr := *m.(*protocol.AppendEntriesCall)
 				logrus.Debugln("follower.appendEntries", n.id, appendEntr)
 
-				// update term if
-				if appendEntr.Term > n.currentTerm {
-					n.currentTerm = appendEntr.Term
-				}
-
 				// reset timeout
 				timeout = n.generateTimeout()
 				tc.Reset(timeout)
 
-				// set leader
-				n.leader, _ = uuid.FromString(appendEntr.LeaderId)
-
-				// apply entries
-				if appendEntr.CommitIndex > n.lastApplied {
-					err := n.log.ApplyEntries(n.lastApplied, appendEntr.CommitIndex)
-					if err != nil {
-						logrus.Error("error while applying entries", err)
-						break
-					}
-
-					n.lastApplied = appendEntr.CommitIndex
-				}
-
 				// append entries
-				if len(appendEntr.Entries) > 0 {
-					err := n.log.AppendEntries(appendEntr.Entries...)
-					if err != nil {
-						logrus.Error("error while appending entries", err)
-						break
-					}
-				}
+				err := n.processAppendEntries(appendEntr, p.Source.String())
+				n.sendAppendEntriesResponse(err == nil, p.Source.String())
 				break
 			case *protocol.AppendEntriesRespond:
 				// * ignore as followers can't process this packet. only
@@ -207,11 +182,9 @@ candidateLoop:
 		case p := <-packetChan:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logrus.Error("couldn't decode packet", err)
+				logrus.Errorln("couldn't decode packet", err)
 				break
 			}
-
-			logrus.Debugln("candidate.packet.inc", n.id, reflect.TypeOf(m))
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
@@ -227,13 +200,13 @@ candidateLoop:
 					break candidateLoop
 				}
 
-				n.responseRequestVote(reqVote, p.Source.String())
+				n.processRequestVote(reqVote, p.Source.String())
 				break
 			case *protocol.RequestVoteRespond:
 				// TODO count negative and positive responds and calculate if he got the majority ..
 
 				n.state = Leader
-				logrus.Debugln("leader.vote.inc", n.id)
+				logrus.Debugln("candidate.vote.inc", n.id)
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
 				// * step back from being candidate, as there is already a leader
@@ -288,7 +261,7 @@ func (n *Node) leaderLoop() {
 		case p := <-pc:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logrus.Error("couldn't decode packet", err)
+				logrus.Errorln("couldn't decode packet", err)
 				break
 			}
 
@@ -308,6 +281,10 @@ func (n *Node) leaderLoop() {
 			case *protocol.AppendEntriesRespond:
 				// * a client responded with the result of the append entries
 				// call.
+
+				appendEntrResp := *m.(*protocol.AppendEntriesRespond)
+
+				logrus.Debugln("leader.appendEntries.respond", n.id, appendEntrResp)
 
 				break
 			}
@@ -347,7 +324,7 @@ func (n *Node) sendRequestVote() {
 	n.transport.Send() <- &m
 }
 
-func (n *Node) responseRequestVote(req protocol.RequestVoteCall, source string) {
+func (n *Node) processRequestVote(req protocol.RequestVoteCall, source string) {
 	var res bool
 
 	if n.votedFor != uid.Nil {
@@ -382,6 +359,57 @@ func (n *Node) sendHeartbeat() {
 	})
 	m := transport.OutgoingMessage{
 		RoutingKey: broadcastRoute,
+		Data:       d,
+	}
+	n.transport.Send() <- &m
+}
+
+func (n *Node) processAppendEntries(appendEntr protocol.AppendEntriesCall, source string) error {
+	// update term if
+	if appendEntr.Term > n.currentTerm {
+		n.currentTerm = appendEntr.Term
+	}
+
+	// set leader
+	n.leader, _ = uuid.FromString(appendEntr.LeaderId)
+
+	// check for prevLogIndex
+	if n.log.HasEntry(appendEntr.PrevLogIndex, appendEntr.PrevLogTerm) {
+		err := fmt.Errorf("log does not contain prev log context")
+		logrus.Errorln(err)
+		return err
+	}
+
+	// apply entries
+	if appendEntr.CommitIndex > n.lastApplied {
+		err := n.log.ApplyEntries(n.lastApplied, appendEntr.CommitIndex)
+		if err != nil {
+			logrus.Errorln("error while applying entries", err)
+			return err
+		} else {
+			n.lastApplied = appendEntr.CommitIndex
+		}
+	}
+
+	// append entries
+	if len(appendEntr.Entries) > 0 {
+		err := n.log.AppendEntries(appendEntr.Entries...)
+		if err != nil {
+			logrus.Errorln("error while appending entries", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (n *Node) sendAppendEntriesResponse(success bool, source string) {
+	d, _ := transport.Encode(&protocol.AppendEntriesRespond{
+		Term:    n.currentTerm,
+		Success: success,
+	})
+	m := transport.OutgoingMessage{
+		RoutingKey: source,
 		Data:       d,
 	}
 	n.transport.Send() <- &m

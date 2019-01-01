@@ -210,7 +210,7 @@ func (i *AMQPInterface) listenToIncoming() {
 		case broadcast := <-i.broadcastRoute.consumer:
 			m, err := convertMessage(broadcast, i.broadcastRoute)
 			if err != nil {
-				logrus.Error("couldn't read message", err)
+				logrus.Errorln("couldn't read message", err)
 				break
 			}
 
@@ -231,7 +231,7 @@ func (i *AMQPInterface) listenToIncoming() {
 		case private := <-i.privateRoute.consumer:
 			m, err := convertMessage(private, i.privateRoute)
 			if err != nil {
-				logrus.Error("couldn't read message", err)
+				logrus.Errorln("couldn't read message", err)
 				continue
 			}
 
