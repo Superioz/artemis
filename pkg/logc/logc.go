@@ -14,7 +14,7 @@ const (
 var DefaultConfig = Config{
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
-	ShowTime: true,
+	DisplayTimeStamp: true,
 
 	// activates the debug mode for logging
 	Debug: true,
@@ -25,7 +25,7 @@ var DefaultConfig = Config{
 type Config struct {
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
-	ShowTime bool
+	DisplayTimeStamp bool
 
 	// debug mode activates debug messages
 	Debug bool
@@ -35,7 +35,7 @@ type Config struct {
 func ApplyConfig(cfg Config) {
 	formatter := &prefixed.TextFormatter{
 		ForceFormatting: true,
-		FullTimestamp:   cfg.ShowTime,
+		FullTimestamp:   cfg.DisplayTimeStamp,
 		TimestampFormat: stampMilli,
 		ForceColors:     true,
 	}
