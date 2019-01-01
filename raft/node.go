@@ -66,6 +66,13 @@ func NewNode() Node {
 	return n
 }
 
+func (n *Node) SetState(state State) {
+	n.state = state
+
+	// call event
+	Fire(ChangeStateEvent, *n)
+}
+
 func (n *Node) Up(brokerUrl string) {
 	err := n.transport.Connect(brokerUrl)
 	if err != nil || !n.transport.State().Connected() {
@@ -73,6 +80,10 @@ func (n *Node) Up(brokerUrl string) {
 		return
 	}
 
+	// fire event
+	Fire(StartupEvent, *n)
+
+	// main loop
 	for n.transport.State().Connected() {
 		switch n.state {
 		case Follower:
@@ -90,6 +101,9 @@ func (n *Node) Up(brokerUrl string) {
 
 func (n *Node) Down() {
 	_ = n.transport.Disconnect()
+
+	// fire event
+	Fire(ShutdownEvent, *n)
 }
 
 func (n *Node) followerLoop() {
@@ -155,7 +169,8 @@ followerLoop:
 			if n.Passive {
 				break followerLoop
 			}
-			n.state = Candidate
+
+			n.SetState(Candidate)
 			break
 		}
 	}
@@ -196,7 +211,7 @@ candidateLoop:
 				// update and step back
 				if reqVote.Term > n.currentTerm {
 					n.currentTerm = reqVote.Term
-					n.state = Follower
+					n.SetState(Follower)
 					break candidateLoop
 				}
 
@@ -205,7 +220,7 @@ candidateLoop:
 			case *protocol.RequestVoteRespond:
 				// TODO count negative and positive responds and calculate if he got the majority ..
 
-				n.state = Leader
+				n.SetState(Leader)
 				logrus.Debugln("candidate.vote.inc", n.id)
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
@@ -222,7 +237,7 @@ candidateLoop:
 				// set leader
 				n.leader, _ = uuid.FromString(appendEntr.LeaderId)
 
-				n.state = Follower
+				n.SetState(Follower)
 				break candidateLoop
 			case *protocol.AppendEntriesRespond:
 				// * ignore packet, as we are a candidate and can't

@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -8,10 +9,6 @@ const (
 	StartupEvent              = "startup"
 	ShutdownEvent             = "shutdown"
 	ChangeStateEvent          = "change_state"
-	SendRequestVoteEvent      = "send_request_vote"
-	ReceiveRequestVoteEvent   = "receive_request_vote"
-	SendAppendEntriesEvent    = "send_append_entries"
-	ReceiveAppendEntriesEvent = "receive_append_entries"
 )
 
 // a hook can be added to the hook registry to be
@@ -57,6 +54,9 @@ func AddHook(hook EventHook) {
 	eventHooks.Add(hook)
 }
 
-func Fire(t EventType, node Node) error {
-	return eventHooks.Fire(t, node)
+func Fire(t EventType, node Node) {
+	err := eventHooks.Fire(t, node)
+	if err != nil {
+		logrus.Errorln("could not fire event", t, node.id, err)
+	}
 }
