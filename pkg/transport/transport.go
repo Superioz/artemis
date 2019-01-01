@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/satori/go.uuid"
 	"github.com/superioz/artemis/pkg/buffer"
+	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/raft/protocol"
 	"time"
 )
@@ -52,7 +52,7 @@ type State struct {
 	// the unique id of the interface.
 	// used to uniquely access interfaces in the
 	// broker exchange.
-	id uuid.UUID
+	id uid.UID
 
 	// The key for specifying which exchange to use.
 	// This is especially useful for amqp, as `exchange` itself has
@@ -81,7 +81,7 @@ type State struct {
 	lastReceived time.Time
 }
 
-func (s *State) Id() uuid.UUID {
+func (s *State) Id() uid.UID {
 	return s.id
 }
 
@@ -135,7 +135,7 @@ type IncomingMessage struct {
 	Topic string
 
 	// the uuid of the sender, or `nil` if not found.
-	Source uuid.UUID
+	Source uid.UID
 
 	// the current time stamp when this message
 	// got received.

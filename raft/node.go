@@ -5,8 +5,10 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/superioz/artemis/pkg/logger"
 	"github.com/superioz/artemis/pkg/transport"
+	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
 	"github.com/superioz/artemis/raft/protocol"
+	"reflect"
 	"time"
 )
 
@@ -25,14 +27,14 @@ const (
 )
 
 type Node struct {
-	id    uuid.UUID
+	id    uid.UID
 	state State
 
 	leader uuid.UUID
 
-	currentTerm uint64    // stable storage
-	votedFor    uuid.UUID // stable storage
-	log         Log       // stable storage
+	currentTerm uint64  // stable storage
+	votedFor    uid.UID // stable storage
+	log         Log     // stable storage
 
 	commitIndex uint64               // volatile
 	lastApplied uint64               // volatile
@@ -97,7 +99,7 @@ func (n *Node) followerLoop() {
 	pc := n.transport.Receive()
 
 	// reset some values
-	n.votedFor = uuid.UUID{}
+	n.votedFor = uid.UID{}
 
 followerLoop:
 	for n.state == Follower {
@@ -129,6 +131,7 @@ followerLoop:
 				// update the leader and reset the timeout.
 
 				appendEntr := *m.(*protocol.AppendEntriesCall)
+				logger.Debug("follower.appendEntries", n.id, appendEntr)
 
 				// update term if
 				if appendEntr.Term > n.currentTerm {
@@ -207,6 +210,8 @@ candidateLoop:
 				logger.Err("couldn't decode packet", err)
 				break
 			}
+
+			logger.Debug("candidate.packet.inc", n.id, reflect.TypeOf(m))
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
@@ -345,13 +350,14 @@ func (n *Node) sendRequestVote() {
 func (n *Node) responseRequestVote(req protocol.RequestVoteCall, source string) {
 	var res bool
 
-	if n.votedFor != uuid.Nil {
+	if n.votedFor != uid.Nil {
 		res = n.votedFor.String() == req.CandidateId
 	} else if req.Term < n.currentTerm {
 		res = false
+	} else {
+		ls := n.log.MirrorState()
+		res = req.LastLogIndex >= ls.LastIndex && req.LastLogTerm >= ls.LastTerm
 	}
-	ls := n.log.MirrorState()
-	res = req.LastLogIndex >= ls.LastIndex && req.LastLogTerm >= ls.LastTerm
 
 	d, _ := transport.Encode(&protocol.RequestVoteRespond{
 		Term:        n.currentTerm,

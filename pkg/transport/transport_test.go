@@ -219,6 +219,7 @@ func TestAMQPPrivate(t *testing.T) {
 	if connected < 2 {
 		t.Skip("couldn't connect to broker")
 	}
+	fmt.Println(n1.state.id)
 	n1.Send() <- &OutgoingMessage{
 		RoutingKey: n2.state.id.String(),
 		Data:       []byte(n1.state.id.String() + ": Hello there!"),

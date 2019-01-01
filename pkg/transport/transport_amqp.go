@@ -2,9 +2,9 @@ package transport
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 	"github.com/superioz/artemis/pkg/logger"
+	"github.com/superioz/artemis/pkg/uid"
 	"time"
 )
 
@@ -57,7 +57,7 @@ type AMQPInterface struct {
 // creates a new amqp interface for connecting
 // to e.g. a RabbitMQ broker
 func NewAMQPInterface(exchange string) AMQPInterface {
-	id := uuid.NewV4()
+	id := uid.NewUID()
 
 	return AMQPInterface{
 		state: &State{id: id, exchangeKey: exchange},
@@ -258,15 +258,15 @@ func convertMessage(d amqp.Delivery, route amqpRoute) (IncomingMessage, error) {
 
 	// create wrapper for this message
 	uidStr, ok := d.Headers["user-id"].(string)
-	var uid uuid.UUID
+	var id uid.UID
 	if ok {
-		uid, _ = uuid.FromString(uidStr)
+		id, _ = uid.FromString(uidStr)
 	}
 
 	message := IncomingMessage{
 		Packet: &p,
 		Topic:  route.topic,
-		Source: uid,
+		Source: id,
 		Time:   time.Now(),
 	}
 	return message, nil
