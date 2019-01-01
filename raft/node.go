@@ -3,6 +3,7 @@ package raft
 import (
 	"fmt"
 	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/superioz/artemis/pkg/logger"
 	"github.com/superioz/artemis/pkg/transport"
 	"github.com/superioz/artemis/pkg/uid"
@@ -70,7 +71,7 @@ func NewNode() Node {
 func (n *Node) Up(brokerUrl string) {
 	err := n.transport.Connect(brokerUrl)
 	if err != nil || !n.transport.State().Connected() {
-		logger.Err(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
+		logrus.Error(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
 		return
 	}
 
@@ -107,7 +108,7 @@ followerLoop:
 		case p := <-pc:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logger.Err("couldn't decode packet", err)
+				logrus.Error("couldn't decode packet", err)
 				break
 			}
 
@@ -118,7 +119,7 @@ followerLoop:
 
 				reqVote := *m.(*protocol.RequestVoteCall)
 
-				logger.Debug("follower.vote.req.inc", n.id, m)
+				logrus.Debug("follower.vote.req.inc", n.id, m)
 
 				n.responseRequestVote(reqVote, p.Source.String())
 				break
@@ -131,7 +132,7 @@ followerLoop:
 				// update the leader and reset the timeout.
 
 				appendEntr := *m.(*protocol.AppendEntriesCall)
-				logger.Debug("follower.appendEntries", n.id, appendEntr)
+				logrus.Debug("follower.appendEntries", n.id, appendEntr)
 
 				// update term if
 				if appendEntr.Term > n.currentTerm {
@@ -149,7 +150,7 @@ followerLoop:
 				if appendEntr.CommitIndex > n.lastApplied {
 					err := n.log.ApplyEntries(n.lastApplied, appendEntr.CommitIndex)
 					if err != nil {
-						logger.Err("error while applying entries", err)
+						logrus.Error("error while applying entries", err)
 						break
 					}
 
@@ -160,7 +161,7 @@ followerLoop:
 				if len(appendEntr.Entries) > 0 {
 					err := n.log.AppendEntries(appendEntr.Entries...)
 					if err != nil {
-						logger.Err("error while appending entries", err)
+						logrus.Error("error while appending entries", err)
 						break
 					}
 				}
@@ -174,7 +175,7 @@ followerLoop:
 		case <-tc.C:
 			// * timeout and try to become leader by sending request votes
 			// also step up to being candidate
-			logger.Debug("follower.timeout", n.id, timeout)
+			logrus.Debug("follower.timeout", n.id, timeout)
 
 			// if the node is only passive, don't try to ever get leader
 			if n.Passive {
@@ -198,7 +199,7 @@ func (n *Node) candidateLoop() {
 	n.votedFor = n.id
 
 	// send request vote packet function
-	logger.Debug("candidate.vote.req", n.id)
+	logrus.Debug("candidate.vote.req", n.id)
 	n.sendRequestVote()
 
 candidateLoop:
@@ -207,11 +208,11 @@ candidateLoop:
 		case p := <-packetChan:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logger.Err("couldn't decode packet", err)
+				logrus.Error("couldn't decode packet", err)
 				break
 			}
 
-			logger.Debug("candidate.packet.inc", n.id, reflect.TypeOf(m))
+			logrus.Debug("candidate.packet.inc", n.id, reflect.TypeOf(m))
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
@@ -233,7 +234,7 @@ candidateLoop:
 				// TODO count negative and positive responds and calculate if he got the majority ..
 
 				n.state = Leader
-				logger.Debug("leader.vote.inc", n.id)
+				logrus.Debug("leader.vote.inc", n.id)
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
 				// * step back from being candidate, as there is already a leader
@@ -260,13 +261,13 @@ candidateLoop:
 		case <-timeoutTimer.C:
 			// * begin a new term and try again receiving votes.
 
-			logger.Debug("candidate.timeout", n.id, timeout)
+			logrus.Debug("candidate.timeout", n.id, timeout)
 			break candidateLoop
 		case <-hardBeetTimer.C:
 			// * try again to receive votes from followers, cause maybe not every follower
 			// received the packet or responded yet.
 
-			logger.Debug("candidate.heartbeat", n.id)
+			logrus.Debug("candidate.heartbeat", n.id)
 			n.sendRequestVote()
 			break
 		}
@@ -288,7 +289,7 @@ func (n *Node) leaderLoop() {
 		case p := <-pc:
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
-				logger.Err("couldn't decode packet", err)
+				logrus.Error("couldn't decode packet", err)
 				break
 			}
 
@@ -315,7 +316,7 @@ func (n *Node) leaderLoop() {
 		case <-hb.C:
 			// * send normal heartbeat with no information
 			// just to keep his authority.
-			logger.Debug("leader.heartbeat", n.id)
+			logrus.Debug("leader.heartbeat", n.id)
 			n.sendHeartbeat()
 			break
 		}

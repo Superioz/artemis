@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/superioz/artemis/pkg/logger"
+	"github.com/sirupsen/logrus"
+	"github.com/superioz/artemis/pkg/logc"
 )
 
 func main() {
-	logger.Info("Hello, World!")
+	logc.ApplyConfig(logc.DefaultConfig)
+	logrus.Info("Hello, World!")
 }

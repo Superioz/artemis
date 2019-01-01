@@ -2,8 +2,8 @@ package transport
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"github.com/superioz/artemis/pkg/logger"
 	"github.com/superioz/artemis/pkg/uid"
 	"time"
 )
@@ -91,7 +91,7 @@ func (i *AMQPInterface) Connect(url string) error {
 	i.connection = conn
 	i.state.currentBroker = url
 	i.state.connected = true
-	logger.Info("Connected to amqp.")
+	logrus.Info("Connected to amqp.")
 
 	i.notifyClose = conn.NotifyClose(make(chan *amqp.Error))
 
@@ -102,7 +102,7 @@ func (i *AMQPInterface) Connect(url string) error {
 		return err
 	}
 	i.channel = ch
-	logger.Info("Opened channel to amqp.")
+	logrus.Info("Opened channel to amqp.")
 
 	// check exchange
 	err = ch.ExchangeDeclare(i.state.exchangeKey, exchangeKind, false,
@@ -111,7 +111,7 @@ func (i *AMQPInterface) Connect(url string) error {
 		_ = i.Disconnect()
 		return err
 	}
-	logger.Info("Declared amqp exchange.")
+	logrus.Info("Declared amqp exchange.")
 
 	// declare the private queue of the interface
 	err = i.declareQueue(&i.privateRoute)
@@ -126,7 +126,7 @@ func (i *AMQPInterface) Connect(url string) error {
 		_ = i.Disconnect()
 		return err
 	}
-	logger.Info("Declared amqp queues.")
+	logrus.Info("Declared amqp queues.")
 
 	// create channels
 	i.incoming = make(chan *IncomingMessage)
@@ -151,7 +151,7 @@ func (i *AMQPInterface) Disconnect() error {
 	i.state.connected = false
 	close(i.incoming)
 	close(i.outgoing)
-	logger.Info("Disconnected from amqp.")
+	logrus.Info("Disconnected from amqp.")
 	return err
 }
 
@@ -210,7 +210,7 @@ func (i *AMQPInterface) listenToIncoming() {
 		case broadcast := <-i.broadcastRoute.consumer:
 			m, err := convertMessage(broadcast, i.broadcastRoute)
 			if err != nil {
-				logger.Err("couldn't read message", err)
+				logrus.Error("couldn't read message", err)
 				break
 			}
 
@@ -231,7 +231,7 @@ func (i *AMQPInterface) listenToIncoming() {
 		case private := <-i.privateRoute.consumer:
 			m, err := convertMessage(private, i.privateRoute)
 			if err != nil {
-				logger.Err("couldn't read message", err)
+				logrus.Error("couldn't read message", err)
 				continue
 			}
 
