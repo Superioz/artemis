@@ -10,8 +10,8 @@ import (
 func Test(t *testing.T) {
 	ApplyConfig(DefaultConfig)
 
-	logrus.Debug("Useful debugging information.")
-	logrus.Info("Look what happened")
-	logrus.Warn("You should probably take a look at this.")
-	logrus.Error("Something failed but I'm not quitting.")
+	logrus.Debug("Useful debugging information.", 1337, 77)
+	logrus.Info("Look what happened", 42)
+	logrus.Warn("You should probably take a look at this.", 69)
+	logrus.Error("Something failed but I'm not quitting.", 88)
 }

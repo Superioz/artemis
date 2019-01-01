@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/superioz/artemis/pkg/logger"
 	"github.com/superioz/artemis/pkg/transport"
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
@@ -119,7 +118,7 @@ followerLoop:
 
 				reqVote := *m.(*protocol.RequestVoteCall)
 
-				logrus.Debug("follower.vote.req.inc", n.id, m)
+				logrus.Debugln("follower.vote.req.inc", n.id, m)
 
 				n.responseRequestVote(reqVote, p.Source.String())
 				break
@@ -132,7 +131,7 @@ followerLoop:
 				// update the leader and reset the timeout.
 
 				appendEntr := *m.(*protocol.AppendEntriesCall)
-				logrus.Debug("follower.appendEntries", n.id, appendEntr)
+				logrus.Debugln("follower.appendEntries", n.id, appendEntr)
 
 				// update term if
 				if appendEntr.Term > n.currentTerm {
@@ -175,7 +174,7 @@ followerLoop:
 		case <-tc.C:
 			// * timeout and try to become leader by sending request votes
 			// also step up to being candidate
-			logrus.Debug("follower.timeout", n.id, timeout)
+			logrus.Debugln("follower.timeout", n.id, timeout)
 
 			// if the node is only passive, don't try to ever get leader
 			if n.Passive {
@@ -199,7 +198,7 @@ func (n *Node) candidateLoop() {
 	n.votedFor = n.id
 
 	// send request vote packet function
-	logrus.Debug("candidate.vote.req", n.id)
+	logrus.Debugln("candidate.vote.req", n.id)
 	n.sendRequestVote()
 
 candidateLoop:
@@ -212,7 +211,7 @@ candidateLoop:
 				break
 			}
 
-			logrus.Debug("candidate.packet.inc", n.id, reflect.TypeOf(m))
+			logrus.Debugln("candidate.packet.inc", n.id, reflect.TypeOf(m))
 
 			switch m.(type) {
 			case *protocol.RequestVoteCall:
@@ -234,7 +233,7 @@ candidateLoop:
 				// TODO count negative and positive responds and calculate if he got the majority ..
 
 				n.state = Leader
-				logrus.Debug("leader.vote.inc", n.id)
+				logrus.Debugln("leader.vote.inc", n.id)
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
 				// * step back from being candidate, as there is already a leader
@@ -261,13 +260,13 @@ candidateLoop:
 		case <-timeoutTimer.C:
 			// * begin a new term and try again receiving votes.
 
-			logrus.Debug("candidate.timeout", n.id, timeout)
+			logrus.Debugln("candidate.timeout", n.id, timeout)
 			break candidateLoop
 		case <-hardBeetTimer.C:
 			// * try again to receive votes from followers, cause maybe not every follower
 			// received the packet or responded yet.
 
-			logrus.Debug("candidate.heartbeat", n.id)
+			logrus.Debugln("candidate.heartbeat", n.id)
 			n.sendRequestVote()
 			break
 		}
@@ -316,7 +315,7 @@ func (n *Node) leaderLoop() {
 		case <-hb.C:
 			// * send normal heartbeat with no information
 			// just to keep his authority.
-			logrus.Debug("leader.heartbeat", n.id)
+			logrus.Debugln("leader.heartbeat", n.id)
 			n.sendHeartbeat()
 			break
 		}

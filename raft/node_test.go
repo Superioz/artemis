@@ -2,6 +2,7 @@ package raft
 
 import (
 	"fmt"
+	"github.com/superioz/artemis/pkg/logc"
 	"testing"
 )
 
@@ -10,6 +11,7 @@ import (
 // and the candidacy leading to one being a leader in the
 // cluster.
 func TestNodeElection(t *testing.T) {
+	logc.ApplyConfig(logc.DefaultConfig)
 	node := NewNode()
 	go node.Up("amqp://guest:guest@localhost:5672")
 
