@@ -20,10 +20,7 @@ func (t *testEventHook) Fire(event *Event) error {
 func TestHook(t *testing.T) {
 	h := testEventHook{}
 	AddHook(&h)
-	err := Fire(EventType("test"), Node{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	Fire(EventType("test"), Node{})
 	if !h.val {
 		t.Fatal("hook did not get fired")
 	}
