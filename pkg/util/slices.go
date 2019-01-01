@@ -39,3 +39,16 @@ func Delete(slice interface{}, indexf int, indext int) (interface{}, error) {
 	rs = append(rs[:indexf], rs[indext+1:]...)
 	return rs, nil
 }
+
+// deletes item from given slice in range [indexf; indext]
+func Remove(slice interface{}, index int) (interface{}, error) {
+	inValue := reflect.ValueOf(slice)
+	inKind := inValue.Type().Kind()
+	if inKind != reflect.Slice && inKind != reflect.Array {
+		return nil, fmt.Errorf("can only delete from slices and arrays")
+	}
+
+	rs := slice.([]interface{})
+	rs = append(rs[:index], rs[index+1:]...)
+	return rs, nil
+}
