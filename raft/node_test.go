@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"github.com/superioz/artemis/pkg/logc"
 	"testing"
 )
@@ -17,7 +16,6 @@ func TestNodeElection(t *testing.T) {
 
 	node2 := NewNode()
 	node2.Passive = true
-	fmt.Println("Passive is: " + node2.id.String())
 	go node2.Up("amqp://guest:guest@localhost:5672")
 
 	for {

@@ -11,12 +11,6 @@ const (
 	ChangeStateEvent          = "change_state"
 )
 
-// a hook can be added to the hook registry to be
-// executed when an event triggers
-type EventHook interface {
-	Fire(event *Event) error
-}
-
 type EventType string
 
 // the event information to be passed to
@@ -28,11 +22,11 @@ type Event struct {
 }
 
 // internal type for storing the hooks on a node instance
-type EventHooks []EventHook
+type EventHooks []func(e *Event) error
 
 // Add a hook to an instance of logger. This is called with
 // `log.Hooks.Add(new(MyHook))` where `MyHook` implements the `Hook` interface.
-func (hooks *EventHooks) Add(hook EventHook) {
+func (hooks *EventHooks) Add(hook func(e *Event) error) {
 	*hooks = append(*hooks, hook)
 }
 
@@ -40,7 +34,7 @@ func (hooks *EventHooks) Add(hook EventHook) {
 // appropriate hooks for a log entry.
 func (hooks EventHooks) Fire(t EventType, node Node) error {
 	for _, hook := range hooks {
-		if err := hook.Fire(&Event{Type: t, Node: node, Timestamp: time.Now()}); err != nil {
+		if err := hook(&Event{Type: t, Node: node, Timestamp: time.Now()}); err != nil {
 			return err
 		}
 	}
@@ -50,7 +44,7 @@ func (hooks EventHooks) Fire(t EventType, node Node) error {
 
 var eventHooks = EventHooks{}
 
-func AddHook(hook EventHook) {
+func AddHook(hook func(e *Event) error) {
 	eventHooks.Add(hook)
 }
 
