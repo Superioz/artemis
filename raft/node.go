@@ -72,7 +72,7 @@ func (n *Node) SetState(state State) {
 	// call event
 	logrus.WithFields(logrus.Fields{
 		"state": state,
-		"id": n.id,
+		"id":    n.id,
 	}).Infoln("node changed state")
 	Fire(ChangeStateEvent, *n)
 }
@@ -135,7 +135,9 @@ followerLoop:
 
 				reqVote := *m.(*protocol.RequestVoteCall)
 
-				logrus.Debugln("follower.vote.req.inc", n.id, m)
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("follower.i.voterequest", n.id, m)
 
 				n.processRequestVote(reqVote, p.Source.String())
 				break
@@ -148,7 +150,9 @@ followerLoop:
 				// update the leader and reset the timeout.
 
 				appendEntr := *m.(*protocol.AppendEntriesCall)
-				logrus.Debugln("follower.appendEntries", n.id, appendEntr)
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("follower.i.appendEntries", n.id, appendEntr)
 
 				// reset timeout
 				timeout = n.generateTimeout()
@@ -192,7 +196,9 @@ func (n *Node) candidateLoop() {
 	n.votedFor = n.id
 
 	// send request vote packet function
-	logrus.Debugln("candidate.vote.req", n.id)
+	logrus.WithFields(logrus.Fields{
+		"prefix": "out",
+	}).Debugln("candidate.o.voterequest", n.id)
 	n.sendRequestVote()
 
 candidateLoop:
@@ -210,6 +216,9 @@ candidateLoop:
 				// * sent back false, as we already voted for ourself
 
 				reqVote := *m.(*protocol.RequestVoteCall)
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("candidate.i.voterequest")
 
 				// if term of packet is higher than current term
 				// update and step back
@@ -224,8 +233,10 @@ candidateLoop:
 			case *protocol.RequestVoteRespond:
 				// TODO count negative and positive responds and calculate if he got the majority ..
 
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("candidate.i.voterespond", n.id)
 				n.SetState(Leader)
-				logrus.Debugln("candidate.vote.inc", n.id)
 				break candidateLoop
 			case *protocol.AppendEntriesCall:
 				// * step back from being candidate, as there is already a leader
@@ -233,6 +244,9 @@ candidateLoop:
 				// * also reset timeout
 
 				appendEntr := *m.(*protocol.AppendEntriesCall)
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("candidate.i.appendEntries", n.id, appendEntr)
 
 				// reset timeout
 				timeout = n.generateTimeout()
@@ -258,7 +272,9 @@ candidateLoop:
 			// * try again to receive votes from followers, cause maybe not every follower
 			// received the packet or responded yet.
 
-			logrus.Debugln("candidate.heartbeat", n.id)
+			logrus.WithFields(logrus.Fields{
+				"prefix": "out",
+			}).Debugln("candidate.o.heartbeat", n.id)
 			n.sendRequestVote()
 			break
 		}
@@ -273,6 +289,9 @@ func (n *Node) leaderLoop() {
 	hb := time.NewTicker(n.heartbeatInterval * time.Millisecond)
 
 	// send packet
+	logrus.WithFields(logrus.Fields{
+		"prefix": "out",
+	}).Debugln("leader.o.heartbeat", n.id)
 	n.sendHeartbeat()
 
 	for n.state == Leader {
@@ -303,7 +322,9 @@ func (n *Node) leaderLoop() {
 
 				appendEntrResp := *m.(*protocol.AppendEntriesRespond)
 
-				logrus.Debugln("leader.appendEntries.respond", n.id, appendEntrResp)
+				logrus.WithFields(logrus.Fields{
+					"prefix": "in",
+				}).Debugln("leader.i.appendEntries.respond", n.id, appendEntrResp)
 
 				break
 			}
@@ -311,7 +332,9 @@ func (n *Node) leaderLoop() {
 		case <-hb.C:
 			// * send normal heartbeat with no information
 			// just to keep his authority.
-			logrus.Debugln("leader.heartbeat", n.id)
+			logrus.WithFields(logrus.Fields{
+				"prefix": "out",
+			}).Debugln("leader.o.heartbeat", n.id)
 			n.sendHeartbeat()
 			break
 		}

@@ -44,6 +44,7 @@ func ApplyConfig(cfg Config) {
 		InfoLevelStyle:  "cyan+h",
 		WarnLevelStyle:  "yellow",
 		ErrorLevelStyle: "red",
+		PrefixStyle: "black+h",
 	})
 
 	logrus.SetFormatter(formatter)
