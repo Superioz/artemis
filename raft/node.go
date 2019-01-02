@@ -70,6 +70,10 @@ func (n *Node) SetState(state State) {
 	n.state = state
 
 	// call event
+	logrus.WithFields(logrus.Fields{
+		"state": state,
+		"id": n.id,
+	}).Infoln("node changed state")
 	Fire(ChangeStateEvent, *n)
 }
 

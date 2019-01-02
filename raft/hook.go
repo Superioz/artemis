@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	StartupEvent              = "startup"
-	ShutdownEvent             = "shutdown"
-	ChangeStateEvent          = "change_state"
+	StartupEvent     = "startup"
+	ShutdownEvent    = "shutdown"
+	ChangeStateEvent = "change_state"
 )
 
 type EventType string
@@ -48,6 +48,7 @@ func AddHook(hook func(e *Event) error) {
 	eventHooks.Add(hook)
 }
 
+// Hooks are getting fired synchronously.
 func Fire(t EventType, node Node) {
 	err := eventHooks.Fire(t, node)
 	if err != nil {
