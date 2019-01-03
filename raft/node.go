@@ -5,6 +5,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/superioz/artemis/config"
+	"github.com/superioz/artemis/config/logc"
 	"github.com/superioz/artemis/pkg/transport"
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
@@ -43,10 +44,11 @@ type Node struct {
 
 	Passive bool
 
-	config config.ClusterConfig
+	config config.NodeConfig
 }
 
-func NewNode(config config.ClusterConfig) Node {
+func NewNode(config config.NodeConfig) Node {
+	logc.ApplyConfig(config.Logging)
 	trans := transport.NewAMQPInterface(config.Broker.ExchangeKey)
 
 	n := Node{

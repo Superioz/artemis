@@ -1,4 +1,4 @@
-package logc
+package config
 
 import (
 	"github.com/sirupsen/logrus"
@@ -10,29 +10,19 @@ const (
 	stampMilli = "Jan 02 15:04:05.000"
 )
 
-// the default config of the logger. can be set with `SetConfig()`
-var DefaultConfig = Config{
-	// `true` = shows the timestamp of the logging message
-	// before the logging level
-	DisplayTimeStamp: true,
-
-	// activates the debug mode for logging
-	Debug: true,
-}
-
 // logger config can be used to determine specific attributes.
 // for example things like: message format, file writing, ...
-type Config struct {
+type config struct {
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
-	DisplayTimeStamp bool
+	DisplayTimeStamp bool `json:"displayTimeStamp"`
 
 	// debug mode activates debug messages
-	Debug bool
+	Debug bool `json:"debug"`
 }
 
 // applies given config to the logger and formatter
-func ApplyConfig(cfg Config) {
+func ApplyConfig(cfg config) {
 	formatter := &prefixed.TextFormatter{
 		ForceFormatting: true,
 		FullTimestamp:   cfg.DisplayTimeStamp,

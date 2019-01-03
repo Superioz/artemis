@@ -1,4 +1,4 @@
-package logc
+package config
 
 import (
 	"github.com/sirupsen/logrus"

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/superioz/artemis/pkg/logc"
+	"github.com/superioz/artemis/config/logc"
 )
 
 func main() {

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/superioz/artemis/config/logc"
 	"os"
 	"runtime"
 	"strings"
@@ -18,6 +19,9 @@ const (
 	homeDriveEnv   = "HOMEDRIVE"
 	homePathEnv    = "HOMEPATH"
 	userProfileEnv = "USERPROFILE"
+
+	defaultLogDisplayTime = true
+	defaultLogDebug       = true
 
 	defaultHost              = "amqp://guest:guest@localhost"
 	defaultPort              = "5672"
@@ -35,8 +39,9 @@ type broker struct {
 	BroadcastRoute string `json:"broadcastRoute"`
 }
 
-type ClusterConfig struct {
+type NodeConfig struct {
 	Broker            broker `json:"broker"`
+	Logging           config `json:"logging"`
 	HeartbeatInterval int    `json:"heartbeatInterval"`
 	ElectionTimeout   int    `json:"electionTimeout"`
 	ClusterSize       int    `json:"clusterSize"`
@@ -53,13 +58,17 @@ func GetRootDirectory() string {
 	return dirUnix
 }
 
-func Load() (ClusterConfig, error) {
-	def := ClusterConfig{
+func Load() (NodeConfig, error) {
+	def := NodeConfig{
 		Broker: broker{
 			Host:           defaultHost,
 			Port:           defaultPort,
 			ExchangeKey:    defaultExchange,
 			BroadcastRoute: defaultBroadcastRoute,
+		},
+		Logging: config{
+			DisplayTimeStamp: defaultLogDisplayTime,
+			Debug:            defaultLogDebug,
 		},
 		HeartbeatInterval: defaultHeartbeatInterval,
 		ElectionTimeout:   defaultElectionTimeout,
@@ -87,7 +96,7 @@ func Load() (ClusterConfig, error) {
 }
 
 // reads config struct from given file directory
-func readInConfig(file string, config ClusterConfig) (ClusterConfig, error) {
+func readInConfig(file string, config NodeConfig) (NodeConfig, error) {
 	configFile, err := os.Open(file)
 	if err != nil {
 		return config, err
