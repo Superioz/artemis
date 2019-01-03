@@ -18,18 +18,28 @@ const (
 	homeDriveEnv   = "HOMEDRIVE"
 	homePathEnv    = "HOMEPATH"
 	userProfileEnv = "USERPROFILE"
+
+	defaultHost              = "amqp://guest:guest@localhost"
+	defaultPort              = "5672"
+	defaultExchange          = "artemis"
+	defaultBroadcastRoute    = "broadcast.all"
+	defaultHeartbeatInterval = 1500
+	defaultElectionTimeout   = 2000
+	defaultClusterSize       = 2
 )
 
+type broker struct {
+	Host           string `json:"host"`
+	Port           string `json:"port"`
+	ExchangeKey    string `json:"exchangeKey"`
+	BroadcastRoute string `json:"broadcastRoute"`
+}
+
 type ClusterConfig struct {
-	Broker struct {
-		Host           string `json:"host"`
-		Port           string `json:"port"`
-		ExchangeKey    string `json:"exchangeKey"`
-		BroadcastRoute string `json:"broadcastRoute"`
-	} `json:"broker"`
-	HeartbeatInterval int `json:"heartbeatInterval"`
-	ElectionTimeout   int `json:"electionTimeout"`
-	ClusterSize       int `json:"clusterSize"`
+	Broker            broker `json:"broker"`
+	HeartbeatInterval int    `json:"heartbeatInterval"`
+	ElectionTimeout   int    `json:"electionTimeout"`
+	ClusterSize       int    `json:"clusterSize"`
 }
 
 func GetRootDirectory() string {
@@ -43,7 +53,19 @@ func GetRootDirectory() string {
 	return dirUnix
 }
 
-func Load(def ClusterConfig) (ClusterConfig, error) {
+func Load() (ClusterConfig, error) {
+	def := ClusterConfig{
+		Broker: broker{
+			Host:           defaultHost,
+			Port:           defaultPort,
+			ExchangeKey:    defaultExchange,
+			BroadcastRoute: defaultBroadcastRoute,
+		},
+		HeartbeatInterval: defaultHeartbeatInterval,
+		ElectionTimeout:   defaultElectionTimeout,
+		ClusterSize:       defaultClusterSize,
+	}
+
 	dir := GetRootDirectory() + "/" + configFile
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err := os.Mkdir(GetRootDirectory(), os.ModePerm)

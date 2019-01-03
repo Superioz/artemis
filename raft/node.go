@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/superioz/artemis/config"
 	"github.com/superioz/artemis/pkg/transport"
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
@@ -17,12 +18,6 @@ const (
 	Follower  = "follower"
 	Candidate = "candidate"
 	Leader    = "leader"
-
-	exchange       = "artemis"
-	broadcastRoute = "broadcast.all"
-
-	defaultHeartbeat       = 1500 // in ms, def: 50
-	defaultElectionTimeout = 2000 // in ms, def: 150
 )
 
 type Node struct {
@@ -46,10 +41,12 @@ type Node struct {
 	electionTimeout   time.Duration
 
 	Passive bool
+
+	config config.ClusterConfig
 }
 
-func NewNode() Node {
-	trans := transport.NewAMQPInterface(exchange)
+func NewNode(config config.ClusterConfig) Node {
+	trans := transport.NewAMQPInterface(config.Broker.ExchangeKey)
 
 	n := Node{
 		id:                trans.State().Id(),
@@ -61,7 +58,8 @@ func NewNode() Node {
 		nextIndex:         make(map[uuid.UUID]uint64),
 		matchIndex:        make(map[uuid.UUID]uint64),
 		transport:         &trans,
-		heartbeatInterval: defaultHeartbeat,
+		heartbeatInterval: time.Duration(config.HeartbeatInterval),
+		config:            config,
 	}
 	return n
 }
@@ -343,8 +341,8 @@ func (n *Node) leaderLoop() {
 
 func (n *Node) generateTimeout() time.Duration {
 	timeout := util.RandInt(
-		defaultElectionTimeout,
-		defaultElectionTimeout*2,
+		n.config.ElectionTimeout,
+		n.config.ElectionTimeout*2,
 		time.Now().UnixNano(),
 		n.transport.State().Id().String(),
 	)
@@ -360,7 +358,7 @@ func (n *Node) sendRequestVote() {
 		LastLogTerm:  ls.LastTerm,
 	})
 	m := transport.OutgoingMessage{
-		RoutingKey: broadcastRoute,
+		RoutingKey: n.config.Broker.BroadcastRoute,
 		Data:       d,
 	}
 	n.transport.Send() <- &m
@@ -400,7 +398,7 @@ func (n *Node) sendHeartbeat() {
 		CommitIndex:  n.commitIndex,
 	})
 	m := transport.OutgoingMessage{
-		RoutingKey: broadcastRoute,
+		RoutingKey: n.config.Broker.BroadcastRoute,
 		Data:       d,
 	}
 	n.transport.Send() <- &m
