@@ -1,6 +1,6 @@
 artemis
 =======
 
-![Logo](/docs/static/logo.png "Logo")
+![Logo](/assets/logo.png "Logo")
 
-oof
+oof oof oof oof oof oof oof oof oof oof oof oof oof oof oof
