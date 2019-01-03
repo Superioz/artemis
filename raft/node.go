@@ -5,11 +5,11 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/superioz/artemis/config"
-	"github.com/superioz/artemis/config/logc"
 	"github.com/superioz/artemis/pkg/transport"
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/pkg/util"
 	"github.com/superioz/artemis/raft/protocol"
+	"sync"
 	"time"
 )
 
@@ -48,7 +48,6 @@ type Node struct {
 }
 
 func NewNode(config config.NodeConfig) Node {
-	logc.ApplyConfig(config.Logging)
 	trans := transport.NewAMQPInterface(config.Broker.ExchangeKey)
 
 	n := Node{
@@ -87,12 +86,13 @@ func (n *Node) BrokerConnected() bool {
 	return n.transport.State().Connected()
 }
 
-func (n *Node) Up(brokerUrl string) {
+func (n *Node) Up(brokerUrl string, group *sync.WaitGroup) {
 	err := n.transport.Connect(brokerUrl)
+
 	if err != nil || !n.transport.State().Connected() {
-		logrus.Errorln(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
-		return
+		logrus.Fatalln(fmt.Sprintf("couldn't connect to broker %s", brokerUrl), err)
 	}
+	group.Done()
 
 	// fire event
 	Fire(StartupEvent, *n)

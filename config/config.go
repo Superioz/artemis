@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/superioz/artemis/config/logc"
 	"os"
 	"runtime"
 	"strings"
@@ -92,6 +91,9 @@ func Load() (NodeConfig, error) {
 	if err != nil {
 		return def, err
 	}
+
+	// apply config
+	applyConfig(def.Logging)
 	return c, nil
 }
 

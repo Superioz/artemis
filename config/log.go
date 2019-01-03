@@ -22,7 +22,7 @@ type config struct {
 }
 
 // applies given config to the logger and formatter
-func ApplyConfig(cfg config) {
+func applyConfig(cfg config) {
 	formatter := &prefixed.TextFormatter{
 		ForceFormatting: true,
 		FullTimestamp:   cfg.DisplayTimeStamp,
@@ -31,7 +31,7 @@ func ApplyConfig(cfg config) {
 	}
 	formatter.SetColorScheme(&prefixed.ColorScheme{
 		DebugLevelStyle: "1",
-		InfoLevelStyle:  "cyan+h",
+		InfoLevelStyle:  "blue",
 		WarnLevelStyle:  "yellow",
 		ErrorLevelStyle: "red",
 		PrefixStyle: "black+h",

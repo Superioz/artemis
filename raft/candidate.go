@@ -25,7 +25,7 @@ func (n *Node) candidateLoop() {
 	// send request vote packet function
 	logrus.WithFields(logrus.Fields{
 		"prefix": "out",
-	}).Debugln("candidate.o.voterequest", n.id)
+	}).Debugln("candidate.o.voterequest")
 	n.sendRequestVote()
 
 candidateLoop:
@@ -82,7 +82,7 @@ candidateLoop:
 
 					logrus.WithFields(logrus.Fields{
 						"prefix": "in",
-					}).Debugln("candidate.i.voterespond", n.id)
+					}).Debugln("candidate.i.voterespond")
 					n.SetState(Leader)
 				}
 				break candidateLoop
@@ -94,7 +94,7 @@ candidateLoop:
 				appendEntr := *m.(*protocol.AppendEntriesCall)
 				logrus.WithFields(logrus.Fields{
 					"prefix": "in",
-				}).Debugln("candidate.i.appendEntries", n.id, appendEntr)
+				}).Debugln("candidate.i.appendEntries", appendEntr)
 
 				// reset timeout
 				timeout = n.generateTimeout()
@@ -114,7 +114,7 @@ candidateLoop:
 		case <-timeoutTimer.C:
 			// * begin a new term and try again receiving votes.
 
-			logrus.Debugln("candidate.timeout", n.id, timeout)
+			logrus.Debugln("candidate.timeout", timeout)
 			break candidateLoop
 		case <-hardBeetTimer.C:
 			// * try again to receive votes from followers, cause maybe not every follower
@@ -122,7 +122,7 @@ candidateLoop:
 
 			logrus.WithFields(logrus.Fields{
 				"prefix": "out",
-			}).Debugln("candidate.o.heartbeat", n.id)
+			}).Debugln("candidate.o.heartbeat")
 			n.sendRequestVote()
 			break
 		}

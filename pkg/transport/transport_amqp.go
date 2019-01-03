@@ -83,6 +83,11 @@ func (i *AMQPInterface) Connect(url string) error {
 		return fmt.Errorf("interface is already connected")
 	}
 
+	// log
+	logrus.WithFields(logrus.Fields{
+		"url": url,
+	}).Infoln("connecting to broker..")
+
 	// connects to the amqp broker
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -91,27 +96,29 @@ func (i *AMQPInterface) Connect(url string) error {
 	i.connection = conn
 	i.state.currentBroker = url
 	i.state.connected = true
-	logrus.Info("Connected to amqp.")
+	logrus.Info("connected to amqp broker.")
 
 	i.notifyClose = conn.NotifyClose(make(chan *amqp.Error))
 
 	// creates unique channel for this interface
+	logrus.Infoln("opening channel..")
 	ch, err := conn.Channel()
 	if err != nil {
 		_ = i.Disconnect()
 		return err
 	}
 	i.channel = ch
-	logrus.Info("Opened channel to amqp.")
+	logrus.Info("opened channel to amqp.")
 
 	// check exchange
+	logrus.Infoln("declare exchange..")
 	err = ch.ExchangeDeclare(i.state.exchangeKey, exchangeKind, false,
 		true, false, false, nil)
 	if err != nil {
 		_ = i.Disconnect()
 		return err
 	}
-	logrus.Info("Declared amqp exchange.")
+	logrus.Info("declared amqp exchange.")
 
 	// declare the private queue of the interface
 	err = i.declareQueue(&i.privateRoute)
@@ -121,12 +128,13 @@ func (i *AMQPInterface) Connect(url string) error {
 	}
 
 	// declare the broadcast queue
+	logrus.Infoln("declare queues..")
 	err = i.declareQueue(&i.broadcastRoute)
 	if err != nil {
 		_ = i.Disconnect()
 		return err
 	}
-	logrus.Info("Declared amqp queues.")
+	logrus.Info("declared amqp queues.")
 
 	// create channels
 	i.incoming = make(chan *IncomingMessage)
@@ -151,7 +159,7 @@ func (i *AMQPInterface) Disconnect() error {
 	i.state.connected = false
 	close(i.incoming)
 	close(i.outgoing)
-	logrus.Info("Disconnected from amqp.")
+	logrus.Infoln("disconnected from amqp.")
 	return err
 }
 

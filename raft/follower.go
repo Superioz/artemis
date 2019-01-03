@@ -35,7 +35,7 @@ followerLoop:
 
 				logrus.WithFields(logrus.Fields{
 					"prefix": "in",
-				}).Debugln("follower.i.voterequest", n.id, m)
+				}).Debugln("follower.i.voterequest", m)
 
 				n.processRequestVote(reqVote, p.Source.String())
 				break
@@ -50,7 +50,7 @@ followerLoop:
 				appendEntr := *m.(*protocol.AppendEntriesCall)
 				logrus.WithFields(logrus.Fields{
 					"prefix": "in",
-				}).Debugln("follower.i.appendEntries", n.id, appendEntr)
+				}).Debugln("follower.i.appendEntries", appendEntr)
 
 				// reset timeout
 				timeout = n.generateTimeout()
@@ -69,7 +69,7 @@ followerLoop:
 		case <-tc.C:
 			// * timeout and try to become leader by sending request votes
 			// also step up to being candidate
-			logrus.Debugln("follower.timeout", n.id, timeout)
+			logrus.Debugln("follower.timeout", timeout)
 
 			// if the node is only passive, don't try to ever get leader
 			if n.Passive {

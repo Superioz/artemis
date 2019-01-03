@@ -47,7 +47,7 @@ func (n *Node) leaderLoop() {
 
 				logrus.WithFields(logrus.Fields{
 					"prefix": "in",
-				}).Debugln("leader.i.appendEntries.respond", n.id, appendEntrResp)
+				}).Debugln("leader.i.appendEntries.respond", appendEntrResp)
 
 				break
 			}
@@ -57,7 +57,7 @@ func (n *Node) leaderLoop() {
 			// just to keep his authority.
 			logrus.WithFields(logrus.Fields{
 				"prefix": "out",
-			}).Debugln("leader.o.heartbeat", n.id)
+			}).Debugln("leader.o.heartbeat")
 			n.sendHeartbeat()
 			break
 		}
