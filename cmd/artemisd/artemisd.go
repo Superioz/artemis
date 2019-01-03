@@ -19,7 +19,8 @@ func main() {
 	node := raft.NewNode(cfg)
 	go node.Up(cfg.Broker.Host + ":" + cfg.Broker.Port)
 
-	for {
+	for node.BrokerConnected() {
+		// wait for node to finish
 		select {}
 	}
 }

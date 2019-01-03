@@ -81,6 +81,10 @@ func (n *Node) QuorumSize() int {
 	return (n.config.ClusterSize / 2) + 1
 }
 
+func (n *Node) BrokerConnected() bool {
+	return n.transport.State().Connected()
+}
+
 func (n *Node) Up(brokerUrl string) {
 	err := n.transport.Connect(brokerUrl)
 	if err != nil || !n.transport.State().Connected() {
