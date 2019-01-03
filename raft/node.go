@@ -30,10 +30,11 @@ type Node struct {
 	votedFor    uid.UID // stable storage
 	log         Log     // stable storage
 
-	commitIndex uint64               // volatile
-	lastApplied uint64               // volatile
-	nextIndex   map[uuid.UUID]uint64 // volatile for leaders
-	matchIndex  map[uuid.UUID]uint64 // volatile for leaders
+	currentVotes map[uid.UID]bool   // volatile for candidates
+	commitIndex  uint64             // volatile
+	lastApplied  uint64             // volatile
+	nextIndex    map[uid.UID]uint64 // volatile for leaders
+	matchIndex   map[uid.UID]uint64 // volatile for leaders
 
 	transport transport.Interface
 
@@ -53,10 +54,11 @@ func NewNode(config config.ClusterConfig) Node {
 		state:             Follower,
 		currentTerm:       0,
 		log:               Log{},
+		currentVotes:      make(map[uid.UID]bool),
 		commitIndex:       0,
 		lastApplied:       0,
-		nextIndex:         make(map[uuid.UUID]uint64),
-		matchIndex:        make(map[uuid.UUID]uint64),
+		nextIndex:         make(map[uid.UID]uint64),
+		matchIndex:        make(map[uid.UID]uint64),
 		transport:         &trans,
 		heartbeatInterval: time.Duration(config.HeartbeatInterval),
 		config:            config,
@@ -73,6 +75,10 @@ func (n *Node) SetState(state State) {
 		"id":    n.id,
 	}).Infoln("node changed state")
 	Fire(ChangeStateEvent, *n)
+}
+
+func (n *Node) QuorumSize() int {
+	return (n.config.ClusterSize / 2) + 1
 }
 
 func (n *Node) Up(brokerUrl string) {
@@ -106,237 +112,6 @@ func (n *Node) Down() {
 
 	// fire event
 	Fire(ShutdownEvent, *n)
-}
-
-func (n *Node) followerLoop() {
-	timeout := n.generateTimeout()
-	tc := time.NewTimer(timeout)
-	pc := n.transport.Receive()
-
-	// reset some values
-	n.votedFor = uid.UID{}
-
-followerLoop:
-	for n.state == Follower {
-		select {
-		case p := <-pc:
-			m, err := transport.Decode(p.Packet.Data)
-			if err != nil {
-				logrus.Errorln("couldn't decode packet", err)
-				break
-			}
-
-			switch m.(type) {
-			case *protocol.RequestVoteCall:
-				// * check if he can grant the vote and respond with
-				// his answer.
-
-				reqVote := *m.(*protocol.RequestVoteCall)
-
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("follower.i.voterequest", n.id, m)
-
-				n.processRequestVote(reqVote, p.Source.String())
-				break
-			case *protocol.RequestVoteRespond:
-				// * ignore as followers can't process this packet. only
-				// candidates can.
-				break
-			case *protocol.AppendEntriesCall:
-				// * the leader sends an append entries call, so
-				// update the leader and reset the timeout.
-
-				appendEntr := *m.(*protocol.AppendEntriesCall)
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("follower.i.appendEntries", n.id, appendEntr)
-
-				// reset timeout
-				timeout = n.generateTimeout()
-				tc.Reset(timeout)
-
-				// append entries
-				err := n.processAppendEntries(appendEntr, p.Source.String())
-				n.sendAppendEntriesResponse(err == nil, p.Source.String())
-				break
-			case *protocol.AppendEntriesRespond:
-				// * ignore as followers can't process this packet. only
-				// the leader can.
-				break
-			}
-			break
-		case <-tc.C:
-			// * timeout and try to become leader by sending request votes
-			// also step up to being candidate
-			logrus.Debugln("follower.timeout", n.id, timeout)
-
-			// if the node is only passive, don't try to ever get leader
-			if n.Passive {
-				break followerLoop
-			}
-
-			n.SetState(Candidate)
-			break
-		}
-	}
-}
-
-func (n *Node) candidateLoop() {
-	timeout := n.generateTimeout()
-
-	timeoutTimer := time.NewTimer(timeout)
-	packetChan := n.transport.Receive()
-	hardBeetTimer := time.NewTicker(n.heartbeatInterval * time.Millisecond)
-
-	// increment term and vote for himself
-	n.currentTerm++
-	n.votedFor = n.id
-
-	// send request vote packet function
-	logrus.WithFields(logrus.Fields{
-		"prefix": "out",
-	}).Debugln("candidate.o.voterequest", n.id)
-	n.sendRequestVote()
-
-candidateLoop:
-	for n.state == Candidate {
-		select {
-		case p := <-packetChan:
-			m, err := transport.Decode(p.Packet.Data)
-			if err != nil {
-				logrus.Errorln("couldn't decode packet", err)
-				break
-			}
-
-			switch m.(type) {
-			case *protocol.RequestVoteCall:
-				// * sent back false, as we already voted for ourself
-
-				reqVote := *m.(*protocol.RequestVoteCall)
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("candidate.i.voterequest")
-
-				// if term of packet is higher than current term
-				// update and step back
-				if reqVote.Term > n.currentTerm {
-					n.currentTerm = reqVote.Term
-					n.SetState(Follower)
-					break candidateLoop
-				}
-
-				n.processRequestVote(reqVote, p.Source.String())
-				break
-			case *protocol.RequestVoteRespond:
-				// TODO count negative and positive responds and calculate if he got the majority ..
-
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("candidate.i.voterespond", n.id)
-				n.SetState(Leader)
-				break candidateLoop
-			case *protocol.AppendEntriesCall:
-				// * step back from being candidate, as there is already a leader
-				// sending append entries.
-				// * also reset timeout
-
-				appendEntr := *m.(*protocol.AppendEntriesCall)
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("candidate.i.appendEntries", n.id, appendEntr)
-
-				// reset timeout
-				timeout = n.generateTimeout()
-				timeoutTimer.Reset(timeout)
-
-				// set leader
-				n.leader, _ = uuid.FromString(appendEntr.LeaderId)
-
-				n.SetState(Follower)
-				break candidateLoop
-			case *protocol.AppendEntriesRespond:
-				// * ignore packet, as we are a candidate and can't
-				// process these packets. Only the leader can.
-				break
-			}
-			break
-		case <-timeoutTimer.C:
-			// * begin a new term and try again receiving votes.
-
-			logrus.Debugln("candidate.timeout", n.id, timeout)
-			break candidateLoop
-		case <-hardBeetTimer.C:
-			// * try again to receive votes from followers, cause maybe not every follower
-			// received the packet or responded yet.
-
-			logrus.WithFields(logrus.Fields{
-				"prefix": "out",
-			}).Debugln("candidate.o.heartbeat", n.id)
-			n.sendRequestVote()
-			break
-		}
-	}
-
-	timeoutTimer.Stop()
-	hardBeetTimer.Stop()
-}
-
-func (n *Node) leaderLoop() {
-	pc := n.transport.Receive()
-	hb := time.NewTicker(n.heartbeatInterval * time.Millisecond)
-
-	// send packet
-	logrus.WithFields(logrus.Fields{
-		"prefix": "out",
-	}).Debugln("leader.o.heartbeat", n.id)
-	n.sendHeartbeat()
-
-	for n.state == Leader {
-		select {
-		case p := <-pc:
-			m, err := transport.Decode(p.Packet.Data)
-			if err != nil {
-				logrus.Errorln("couldn't decode packet", err)
-				break
-			}
-
-			switch m.(type) {
-			case *protocol.RequestVoteCall:
-				// * that can't possibly happen. But if so just ignore until
-				// another heartbeat gets sent
-				break
-			case *protocol.RequestVoteRespond:
-				// * we didn't call for a vote so just ignore this
-				// packet.
-				break
-			case *protocol.AppendEntriesCall:
-				// * a client redirected an append entries call.
-
-				break
-			case *protocol.AppendEntriesRespond:
-				// * a client responded with the result of the append entries
-				// call.
-
-				appendEntrResp := *m.(*protocol.AppendEntriesRespond)
-
-				logrus.WithFields(logrus.Fields{
-					"prefix": "in",
-				}).Debugln("leader.i.appendEntries.respond", n.id, appendEntrResp)
-
-				break
-			}
-			break
-		case <-hb.C:
-			// * send normal heartbeat with no information
-			// just to keep his authority.
-			logrus.WithFields(logrus.Fields{
-				"prefix": "out",
-			}).Debugln("leader.o.heartbeat", n.id)
-			n.sendHeartbeat()
-			break
-		}
-	}
 }
 
 func (n *Node) generateTimeout() time.Duration {
