@@ -76,7 +76,7 @@ candidateLoop:
 				logrus.WithFields(logrus.Fields{
 					"id": n.id,
 					"quorum": quorum,
-				}).Infoln(fmt.Sprintf("Received votes: %d/%d", count, n.config.ClusterSize))
+				}).Infoln(fmt.Sprintf("received vote %d/%d", count, n.config.ClusterSize))
 				if count >= quorum {
 					n.currentVotes = make(map[uid.UID]bool)
 
