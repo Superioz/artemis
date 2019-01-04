@@ -2,12 +2,15 @@ package rest
 
 import (
 	"fmt"
+	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
 )
 
 type Server struct {
 	host string
 	port int
+
+	router *fasthttprouter.Router
 }
 
 func New(host string, port int) *Server {
@@ -19,6 +22,7 @@ func New(host string, port int) *Server {
 
 func (s *Server) Up() error {
 	router := GetRouter()
+	s.router = router
 
 	err := fasthttp.ListenAndServe(fmt.Sprintf("%s:%d", s.host, s.port), router.Handler)
 	if err != nil {
