@@ -149,6 +149,7 @@
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
     "github.com/streadway/amqp",
+    "github.com/valyala/fasthttp",
     "github.com/x-cray/logrus-prefixed-formatter",
   ]
   solver-name = "gps-cdcl"
