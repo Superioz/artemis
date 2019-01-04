@@ -3,6 +3,7 @@ package rest
 import (
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/superioz/artemis/pkg/rest/signature"
 	"github.com/valyala/fasthttp"
 )
 
@@ -11,6 +12,7 @@ type Server struct {
 	port int
 
 	router *fasthttprouter.Router
+	auth   *signature.Authenticator
 }
 
 func New(host string, port int) *Server {
@@ -29,4 +31,9 @@ func (s *Server) Up() error {
 		return err
 	}
 	return nil
+}
+
+func GetRouter() *fasthttprouter.Router {
+	router := fasthttprouter.New()
+	return router
 }
