@@ -48,3 +48,11 @@
 [[constraint]]
   name = "github.com/x-cray/logrus-prefixed-formatter"
   version = "0.5.2"
+
+[[constraint]]
+  name = "github.com/valyala/fasthttp"
+  version = "20180529.0.0"
+
+[[constraint]]
+  name = "github.com/buaazp/fasthttprouter"
+  version = "0.1.1"
