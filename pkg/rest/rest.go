@@ -16,24 +16,18 @@ type Server struct {
 }
 
 func New(host string, port int) *Server {
+	router := fasthttprouter.New()
 	return &Server{
-		host: host,
-		port: port,
+		host:   host,
+		port:   port,
+		router: router,
 	}
 }
 
 func (s *Server) Up() error {
-	router := GetRouter()
-	s.router = router
-
-	err := fasthttp.ListenAndServe(fmt.Sprintf("%s:%d", s.host, s.port), router.Handler)
+	err := fasthttp.ListenAndServe(fmt.Sprintf("%s:%d", s.host, s.port), s.router.Handler)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func GetRouter() *fasthttprouter.Router {
-	router := fasthttprouter.New()
-	return router
 }
