@@ -1,13 +1,29 @@
 package rest
 
-import "testing"
+import (
+	"github.com/superioz/artemis/config"
+	"github.com/valyala/fasthttp"
+	"testing"
+)
 
+// makes sure, that the rest server starts properly
 func TestNew(t *testing.T) {
-	server := New("localhost", 2310)
+	handle := func(ctx *fasthttp.RequestCtx) {
+		_, _ = ctx.Write([]byte("Hello World!"))
+	}
+
+	server := New(config.DefaultRestConfig())
+	server.router.GET("/", handle)
+
 	err := server.Up()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// TODO unfinished
+	select {
+	case e := <-server.ErrListen():
+		t.Fatal(e)
+	default:
+		break
+	}
 }

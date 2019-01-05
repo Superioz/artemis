@@ -12,7 +12,7 @@ const (
 
 // logger config can be used to determine specific attributes.
 // for example things like: message format, file writing, ...
-type config struct {
+type Logging struct {
 	// `true` = shows the timestamp of the logging message
 	// before the logging level
 	DisplayTimeStamp bool `json:"displayTimeStamp"`
@@ -22,7 +22,7 @@ type config struct {
 }
 
 // applies given config to the logger and formatter
-func applyConfig(cfg config) {
+func applyConfig(cfg Logging) {
 	formatter := &prefixed.TextFormatter{
 		ForceFormatting: true,
 		FullTimestamp:   cfg.DisplayTimeStamp,

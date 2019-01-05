@@ -32,7 +32,7 @@ func main() {
 	node := raft.NewNode(cfg)
 
 	group.Add(1)
-	go node.Up(cfg.Broker.Host+":"+cfg.Broker.Port, &group)
+	go node.Up(fmt.Sprintf("%s:%d", cfg.Broker.Host, cfg.Broker.Port), &group)
 	group.Wait()
 
 	logrus.WithFields(logrus.Fields{
