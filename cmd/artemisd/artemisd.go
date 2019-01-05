@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/superioz/artemis/config"
+	"github.com/superioz/artemis/pkg/rest"
 	"github.com/superioz/artemis/raft"
 	"sync"
 	"time"
@@ -18,7 +19,17 @@ func main() {
 
 	cfg, err := config.Load()
 	if err != nil {
-		logrus.Errorln("couldn't load config file :(")
+		logrus.Errorln("couldn't load config file :(", err)
+	}
+
+	// -------------
+	// internal rest TODO
+	// -------------
+
+	irest := rest.New(cfg.Rest)
+	err = irest.Up()
+	if err != nil {
+		logrus.Fatalln("error while starting internal rest server", err)
 	}
 
 	// ---------

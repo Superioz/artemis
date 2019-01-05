@@ -11,6 +11,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:7bbfeef88a6cc7d65a6a009ba696e980dcf84ed31a7dd6da7e0c6c2ff544df92"
+  name = "github.com/common-nighthawk/go-figure"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "18b2b544842cab16f3ff418fb5290d8f2896a069"
+
+[[projects]]
+  branch = "master"
   digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -145,6 +153,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/buaazp/fasthttprouter",
+    "github.com/common-nighthawk/go-figure",
     "github.com/golang/protobuf/proto",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
