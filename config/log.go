@@ -22,7 +22,7 @@ type Logging struct {
 }
 
 // applies given config to the logger and formatter
-func applyConfig(cfg Logging) {
+func ApplyLoggingConfig(cfg Logging) {
 	formatter := &prefixed.TextFormatter{
 		ForceFormatting: true,
 		FullTimestamp:   cfg.DisplayTimeStamp,

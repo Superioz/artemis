@@ -141,7 +141,7 @@ func Load() (NodeConfig, error) {
 	}
 
 	// apply config
-	applyConfig(def.Logging)
+	ApplyLoggingConfig(def.Logging)
 	return c, nil
 }
 

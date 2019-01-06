@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/superioz/artemis/config"
+	"github.com/superioz/artemis/pkg/consoleprint"
 	"github.com/superioz/artemis/pkg/rest"
 	"github.com/superioz/artemis/raft"
 	"sync"
@@ -21,6 +22,8 @@ func main() {
 	if err != nil {
 		logrus.Errorln("couldn't load config file :(", err)
 	}
+	consoleprint.PrintHeader("artemis")
+	logrus.Infoln(" ")
 
 	// -------------
 	// internal rest TODO
