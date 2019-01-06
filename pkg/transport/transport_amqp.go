@@ -159,7 +159,7 @@ func (i *AMQPInterface) Disconnect() error {
 	i.state.connected = false
 	close(i.incoming)
 	close(i.outgoing)
-	logrus.Infoln("disconnected from amqp.")
+	logrus.Errorln("disconnected from amqp.")
 	return err
 }
 

@@ -14,7 +14,7 @@ func (n *Node) candidateLoop() {
 	timeout := n.generateTimeout()
 
 	timeoutTimer := time.NewTimer(timeout)
-	packetChan := n.transport.Receive()
+	pc := n.transport.Receive()
 	hardBeetTimer := time.NewTicker(n.heartbeatInterval * time.Millisecond)
 
 	// increment term and vote for himself
@@ -29,9 +29,13 @@ func (n *Node) candidateLoop() {
 	n.sendRequestVote()
 
 candidateLoop:
-	for n.state == Candidate {
+	for n.state == Candidate && n.BrokerConnected() {
 		select {
-		case p := <-packetChan:
+		case p := <-pc:
+			if p == nil {
+				continue
+			}
+
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
 				logrus.Errorln("couldn't decode packet", err)

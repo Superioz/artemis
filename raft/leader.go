@@ -17,9 +17,13 @@ func (n *Node) leaderLoop() {
 	}).Debugln("leader.o.heartbeat", n.id)
 	n.sendHeartbeat()
 
-	for n.state == Leader {
+	for n.state == Leader && n.BrokerConnected() {
 		select {
 		case p := <-pc:
+			if p == nil {
+				continue
+			}
+
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
 				logrus.Errorln("couldn't decode packet", err)

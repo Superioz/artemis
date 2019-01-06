@@ -17,9 +17,13 @@ func (n *Node) followerLoop() {
 	n.votedFor = uid.UID{}
 
 followerLoop:
-	for n.state == Follower {
+	for n.state == Follower && n.BrokerConnected() {
 		select {
 		case p := <-pc:
+			if p == nil {
+				continue
+			}
+
 			m, err := transport.Decode(p.Packet.Data)
 			if err != nil {
 				logrus.Errorln("couldn't decode packet", err)
