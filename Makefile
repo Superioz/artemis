@@ -1,23 +1,18 @@
-GOBUILD=go build
-GOTEST=go test
 GIT_REVISION=$(shell git rev-parse --short=8 HEAD)
-PLATFORM=linux
-ARCH=amd64
-VERSION=0.2.3
-BINARY=artemis-$(GIT_REVISION)
-LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.Build=${GIT_REVISION}"
+# PLATFORM=linux
+# ARCH=amd64
+VERSION=$(shell head ./VERSION)
 
-all: deps dep test build
+LDFLAGS=-ldflags "-X github.com/superioz/artemis/artemisversion.Version=${VERSION} \
+-X github.com/superioz/artemis/artemisversion.Build=${GIT_REVISION}"
 
-deps:
-	go get -u github.com/golang/dep/cmd/dep
-	go get -u github.com/golang/lint/golint
-
-dep:
-	dep ensure -vendor-only
+all: test build install
 
 build:
-	$(shell export GOOS=$(PLATFORM); export GOARCH=$(ARCH); gofmt -w -s .; CGO_ENABLED=0 $(GOBUILD) -o $(BINARY) -v)
+	go build ${LDFLAGS} -o artemis ./cmd/artemiscli/artemiscli.go
+
+install:
+	go install ${LDFLAGS}
 
 test:
-	$(GOTEST) ./... -v
+	${GOTEST} ./... -v
