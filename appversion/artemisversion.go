@@ -1,4 +1,4 @@
-package artemisversion
+package appversion
 
 var (
 	Version string

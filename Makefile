@@ -3,8 +3,8 @@ GIT_REVISION=$(shell git rev-parse --short=8 HEAD)
 # ARCH=amd64
 VERSION=$(shell head ./VERSION)
 
-LDFLAGS=-ldflags "-X github.com/superioz/artemis/artemisversion.Version=${VERSION} \
--X github.com/superioz/artemis/artemisversion.Build=${GIT_REVISION}"
+LDFLAGS=-ldflags "-X github.com/superioz/artemis/appversion.Version=${VERSION} \
+-X github.com/superioz/artemis/appversion.Build=${GIT_REVISION}"
 
 all: test build install
 
