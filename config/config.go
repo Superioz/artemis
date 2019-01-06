@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -121,17 +122,30 @@ func Load() (NodeConfig, error) {
 		ElectionTimeout:   defaultElectionTimeout,
 		ClusterSize:       defaultClusterSize,
 	}
+	c, err := getConfig(def)
 
+	ApplyLoggingConfig(c.Logging)
+	return def, err
+}
+
+// gets a config object from path
+// otherwise return `def`
+func getConfig(def NodeConfig) (NodeConfig, error) {
 	dir := GetRootDirectory() + "/" + configFile
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.Mkdir(GetRootDirectory(), os.ModePerm)
-		if err != nil {
-			return def, err
+		if _, err := os.Stat(GetRootDirectory()); os.IsNotExist(err) {
+			err := os.Mkdir(GetRootDirectory(), os.ModePerm)
+			if err != nil {
+				return def, err
+			}
 		}
 
 		_, err = os.Create(dir)
 		if err != nil {
 			return def, err
+		} else {
+			// write default content to prevent `EOF` error
+			_ = ioutil.WriteFile(dir, []byte("{}"), os.ModePerm)
 		}
 	}
 
@@ -140,8 +154,6 @@ func Load() (NodeConfig, error) {
 		return def, err
 	}
 
-	// apply config
-	ApplyLoggingConfig(def.Logging)
 	return c, nil
 }
 

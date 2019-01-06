@@ -3,6 +3,7 @@ package rest
 import (
 	"github.com/superioz/artemis/config"
 	"github.com/valyala/fasthttp"
+	"sync"
 	"testing"
 )
 
@@ -15,7 +16,9 @@ func TestNew(t *testing.T) {
 	server := New(config.DefaultRestConfig())
 	server.router.GET("/", handle)
 
-	err := server.Up()
+	group := sync.WaitGroup{}
+	group.Add(1)
+	err := server.Up(&group)
 	if err != nil {
 		t.Fatal(err)
 	}

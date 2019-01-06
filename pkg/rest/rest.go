@@ -7,6 +7,8 @@ import (
 	"github.com/superioz/artemis/config"
 	"github.com/superioz/artemis/pkg/rest/signature"
 	"github.com/valyala/fasthttp"
+	"net"
+	"sync"
 	"time"
 )
 
@@ -55,19 +57,30 @@ func New(config config.Rest) *Server {
 
 // starts the server. returns an error if the port couldn't be
 // found or if the server can't bind to that address.
-func (s *Server) Up() error {
+func (s *Server) Up(group *sync.WaitGroup) error {
 	s.server.Handler = s.router.Handler
 
 	// get free port in config range
 	// default `2310`-`2315`
 	port, err := GetFreePortInRange(s.config.Host, s.config.MinPort, s.config.MaxPort)
 	if err != nil {
+		group.Done()
 		return err
 	}
 	s.port = port
 
 	go func() {
-		err := s.server.ListenAndServe(fmt.Sprintf("%s:%d", s.config.Host, port))
+		ln, err := net.Listen("tcp4", fmt.Sprintf("%s:%d", s.config.Host, port))
+		group.Done()
+
+		if err != nil {
+			select {
+			case s.err <- err:
+			}
+		}
+
+		// serving
+		err = s.server.Serve(ln)
 		if err != nil {
 			select {
 			case s.err <- err:
@@ -86,4 +99,8 @@ func (s *Server) ErrListen() <-chan error {
 // host and port.
 func (s *Server) Address() string {
 	return fmt.Sprintf("%s:%d", s.host, s.port)
+}
+
+func (s *Server) Router() *fasthttprouter.Router {
+	return s.router
 }
