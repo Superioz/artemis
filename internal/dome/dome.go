@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var bubble *Dome
+var dome *Dome
 
 type Dome struct {
 	config  *config.NodeConfig
@@ -38,8 +38,8 @@ func (b *Dome) GetRuntime() time.Duration {
 	return time.Now().Sub(b.started)
 }
 
-func newBubble(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server) *Dome {
-	bubble = &Dome{
+func newDome(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server) *Dome {
+	dome = &Dome{
 		config:  config,
 		raft:    raft,
 		clirest: clirest,
@@ -47,7 +47,7 @@ func newBubble(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server)
 	}
 
 	logrus.Infoln("artemis has been set up")
-	return bubble
+	return dome
 }
 
 func Startup() Dome {
@@ -102,5 +102,5 @@ func Startup() Dome {
 	logrus.WithFields(logrus.Fields{
 		"runtime": time.Now().Sub(timeStamp),
 	}).Infoln("dome successfully built")
-	return *newBubble(&cfg, &node, irest)
+	return *newDome(&cfg, &node, irest)
 }
