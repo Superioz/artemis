@@ -13,3 +13,7 @@ func Index(ctx *fasthttp.RequestCtx) {
 		}).Errorln("couldn't handle", ctx.Request.String())
 	}
 }
+
+func Status(ctx *fasthttp.RequestCtx) {
+	ctx.Success("application/json", []byte(`{"status": "ok"}`))
+}

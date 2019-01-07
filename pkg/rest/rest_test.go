@@ -13,7 +13,7 @@ func TestNew(t *testing.T) {
 		_, _ = ctx.Write([]byte("Hello World!"))
 	}
 
-	server := New(config.DefaultRestConfig())
+	server := New(config.DefaultCLIRestConfig())
 	server.router.GET("/", handle)
 
 	group := sync.WaitGroup{}

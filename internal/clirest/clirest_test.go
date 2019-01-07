@@ -10,7 +10,7 @@ import (
 // properly
 func TestStartup(t *testing.T) {
 	group := sync.WaitGroup{}
-	serv := Startup(config.DefaultRestConfig(), &group)
+	serv := Startup(config.DefaultCLIRestConfig(), &group)
 
 	if serv == nil {
 		t.Fatal("server couldn't be created")
@@ -22,13 +22,13 @@ func TestGet(t *testing.T) {
 	config.ApplyLoggingConfig(config.DefaultLoggingConfig())
 
 	group := sync.WaitGroup{}
-	serv := Startup(config.DefaultRestConfig(), &group)
+	serv := Startup(config.DefaultCLIRestConfig(), &group)
 
 	if serv == nil {
 		t.Fatal("server couldn't be created")
 	}
 
-	data, _, _ := Get([]byte{}, "/", "http://localhost:2310")
+	data, _, _ := Get([]byte{}, "/", "localhost:2310")
 	if len(data) == 0 {
 		t.Fatal("invalid data as response")
 	}

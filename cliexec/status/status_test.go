@@ -1,4 +1,4 @@
-package reexec
+package status
 
 import "testing"
 

@@ -31,9 +31,8 @@ const (
 	defaultElectionTimeout   = 2000
 	defaultClusterSize       = 2
 
-	defaultRestHost            = "localhost"
-	defaultRestMinPort         = 2310
-	defaultRestMaxPort         = 2315
+	DefaultRestHost            = "localhost"
+	DefaultRestPort            = 2310
 	defaultRestReadTimeout     = 5
 	defaultRestWriteTimeout    = 5
 	defaultRestMaxConnsPerIP   = 500
@@ -50,10 +49,9 @@ type Broker struct {
 
 // config for a rest server
 // either the internal or external rest api.
-type Rest struct {
+type CLIRest struct {
 	Host                 string `json:"host"`
-	MinPort              int    `json:"minPort"`
-	MaxPort              int    `json:"maxPort"`
+	Port                 int    `json:"port"`
 	ReadTimeout          int    `json:"readTimeout"`
 	WriteTimeout         int    `json:"writeTimeout"`
 	MaxConnsPerIP        int    `json:"maxConnsPerIP"`
@@ -64,7 +62,7 @@ type Rest struct {
 type NodeConfig struct {
 	Broker            Broker  `json:"broker"`
 	Logging           Logging `json:"logging"`
-	Rest              Rest    `json:"rest"`
+	CLIRest           CLIRest `json:"clirest"`
 	HeartbeatInterval int     `json:"heartbeatInterval"`
 	ElectionTimeout   int     `json:"electionTimeout"`
 	ClusterSize       int     `json:"clusterSize"`
@@ -98,11 +96,10 @@ func DefaultLoggingConfig() Logging {
 	}
 }
 
-func DefaultRestConfig() Rest {
-	return Rest{
-		Host:                 defaultRestHost,
-		MinPort:              defaultRestMinPort,
-		MaxPort:              defaultRestMaxPort,
+func DefaultCLIRestConfig() CLIRest {
+	return CLIRest{
+		Host:                 DefaultRestHost,
+		Port:                 DefaultRestPort,
 		ReadTimeout:          defaultRestReadTimeout,
 		WriteTimeout:         defaultRestWriteTimeout,
 		MaxConnsPerIP:        defaultRestMaxConnsPerIP,
@@ -117,7 +114,7 @@ func Load() (NodeConfig, error) {
 	def := NodeConfig{
 		Broker:            DefaultBrokerConfig(),
 		Logging:           DefaultLoggingConfig(),
-		Rest:              DefaultRestConfig(),
+		CLIRest:           DefaultCLIRestConfig(),
 		HeartbeatInterval: defaultHeartbeatInterval,
 		ElectionTimeout:   defaultElectionTimeout,
 		ClusterSize:       defaultClusterSize,

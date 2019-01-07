@@ -9,12 +9,17 @@ import (
 	"sync"
 )
 
+func Address() string {
+	return fmt.Sprintf("http://%s:%d", config.DefaultRestHost, config.DefaultRestPort)
+}
+
 // starts the internal rest server
-func Startup(cfg config.Rest, group *sync.WaitGroup) *rest.Server {
+func Startup(cfg config.CLIRest, group *sync.WaitGroup) *rest.Server {
 	irest := rest.New(cfg)
 
 	// add handler
 	irest.Router().GET("/", Index)
+	irest.Router().GET("/status", Status)
 
 	group.Add(1)
 	err := irest.Up(group)
@@ -35,7 +40,12 @@ func Startup(cfg config.Rest, group *sync.WaitGroup) *rest.Server {
 	return irest
 }
 
-func Get(header []byte, route string, url string) ([]byte, int, error) {
-	code, d, err := fasthttp.Get(header, fmt.Sprintf("%s/%s", url, route))
+func Get(header []byte, route string) ([]byte, int, error) {
+	code, d, err := fasthttp.Get(header, fmt.Sprintf("%s/%s", Address(), route))
+	return d, code, err
+}
+
+func Post(header []byte, route string, args *fasthttp.Args) ([]byte, int, error) {
+	code, d, err := fasthttp.Post(header, fmt.Sprintf("%s/%s", Address(), route), args)
 	return d, code, err
 }

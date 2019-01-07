@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/superioz/artemis/appversion"
-	"github.com/superioz/artemis/pkg/reexec"
+	"github.com/superioz/artemis/cliexec"
 	"os"
 )
 
@@ -14,7 +14,7 @@ func main() {
 		Short:         "Orchestration system based on raft.",
 		Version: fmt.Sprintf("%s, build %s", appversion.Version, appversion.Build),
 	}
-	reexec.Register(rootCmd)
+	cliexec.Register(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

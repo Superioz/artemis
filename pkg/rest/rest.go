@@ -15,7 +15,7 @@ import (
 // represents a rest server
 type Server struct {
 	// the config for the host, port, ...
-	config config.Rest
+	config config.CLIRest
 
 	// the host, probably `0.0.0.0` or `localhost`
 	host string
@@ -38,7 +38,7 @@ type Server struct {
 
 // creates a new server instance with given configuration.
 // default is `config.DefaultRestConfig()`
-func New(config config.Rest) *Server {
+func New(config config.CLIRest) *Server {
 	router := fasthttprouter.New()
 	s := &Server{
 		config: config,
@@ -62,7 +62,7 @@ func (s *Server) Up(group *sync.WaitGroup) error {
 
 	// get free port in config range
 	// default `2310`-`2315`
-	port, err := GetFreePortInRange(s.config.Host, s.config.MinPort, s.config.MaxPort)
+	port, err := GetFreePort(s.config.Host, s.config.Port)
 	if err != nil {
 		group.Done()
 		return err

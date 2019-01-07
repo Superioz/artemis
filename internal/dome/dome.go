@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-var bubble *Bubble
+var bubble *Dome
 
-type Bubble struct {
+type Dome struct {
 	config  *config.NodeConfig
 	raft    *raft.Node
 	clirest *rest.Server
@@ -22,24 +22,24 @@ type Bubble struct {
 	started time.Time
 }
 
-func (b *Bubble) Node() *raft.Node {
+func (b *Dome) Node() *raft.Node {
 	return b.raft
 }
 
-func (b *Bubble) Config() *config.NodeConfig {
+func (b *Dome) Config() *config.NodeConfig {
 	return b.config
 }
 
-func (b *Bubble) InternalRest() *rest.Server {
+func (b *Dome) InternalRest() *rest.Server {
 	return b.clirest
 }
 
-func (b *Bubble) GetRuntime() time.Duration {
+func (b *Dome) GetRuntime() time.Duration {
 	return time.Now().Sub(b.started)
 }
 
-func newBubble(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server) *Bubble {
-	bubble = &Bubble{
+func newBubble(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server) *Dome {
+	bubble = &Dome{
 		config:  config,
 		raft:    raft,
 		clirest: clirest,
@@ -50,7 +50,7 @@ func newBubble(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server)
 	return bubble
 }
 
-func Startup() Bubble {
+func Startup() Dome {
 	group := sync.WaitGroup{}
 	timeStamp := time.Now()
 
@@ -75,7 +75,7 @@ func Startup() Bubble {
 	// -------------
 
 	logrus.Infoln("starting internal rest server..")
-	irest := clirest.Startup(cfg.Rest, &group)
+	irest := clirest.Startup(cfg.CLIRest, &group)
 	group.Wait()
 
 	logrus.WithFields(logrus.Fields{

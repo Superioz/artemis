@@ -15,10 +15,7 @@ Default configuration:
 	  "displayTimeStamp": true,
 	  "debug": true
 	},
-	"rest": {
-	  "host": "localhost",
-	  "minPort": 2310,
-	  "maxPort": 2315,
+	"clirest": {
 	  "readTimeout": 5000,
 	  "writeTimeout": 5000,
 	  "maxConnsPerIP": 50,

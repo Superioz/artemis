@@ -1,11 +1,16 @@
-package reexec
+package status
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/superioz/artemis/internal/clirest"
 )
 
 var statusCmd *cobra.Command
+
+func Cmd() *cobra.Command {
+	return statusCmd
+}
 
 func init() {
 	statusCmd = &cobra.Command{
@@ -16,5 +21,6 @@ func init() {
 }
 
 func status(cmd *cobra.Command, args []string) {
-	fmt.Println("Status: ok")
+	data, code, err := clirest.Get([]byte{}, "/status")
+	fmt.Println(data, code, err)
 }
