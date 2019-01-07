@@ -47,11 +47,11 @@ type Node struct {
 	config config.NodeConfig
 }
 
-func NewNode(config config.NodeConfig) Node {
-	trans := transport.NewAMQPInterface(config.Broker.ExchangeKey)
+func NewNode(config config.NodeConfig, id uid.UID) Node {
+	trans := transport.NewAMQPInterface(config.Broker.ExchangeKey, id)
 
 	n := Node{
-		id:                trans.State().Id(),
+		id:                id,
 		state:             Follower,
 		currentTerm:       0,
 		log:               Log{},

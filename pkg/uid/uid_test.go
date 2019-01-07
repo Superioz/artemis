@@ -1,6 +1,7 @@
 package uid
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -43,5 +44,27 @@ func TestFromString(t *testing.T) {
 	}
 	if uid1 != uid2 {
 		t.Fatal("uid1 does not match uid2", uid1, uid2)
+	}
+}
+
+// makes sure that the uid can be marshalled correctly
+func TestUID_MarshalJSON(t *testing.T) {
+	uid := NewUID()
+	j, err := json.Marshal(uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j == nil {
+		t.Fatal("nil object")
+	}
+
+	uid2 := UID{}
+	err = json.Unmarshal(j, &uid2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if uid2.repr != uid.repr {
+		t.Fatal("unexpected unmarshalled object")
 	}
 }

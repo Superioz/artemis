@@ -1,8 +1,10 @@
 package raft
 
 import (
+	"fmt"
 	"github.com/superioz/artemis/pkg/util"
 	"github.com/superioz/artemis/raft/protocol"
+	"math"
 )
 
 type Log struct {
@@ -13,6 +15,34 @@ type LogState struct {
 	LastIndex uint64
 	LastTerm  uint64
 	Size      int
+}
+
+// gets the entry of the log slice
+func (l *Log) GetEntry(index int) *protocol.LogEntry {
+	if index < 0 || index >= len(l.entries) {
+		return nil
+	}
+	return l.entries[index]
+}
+
+// get the last x entries of the log
+func (l *Log) LastEntries(size int) ([]protocol.LogEntry, error) {
+	entries, err := l.SubSlice(int(math.Max(float64(len(l.entries)-size), 0)), int(float64(len(l.entries)-1)))
+	return entries, err
+}
+
+// returns a sub slice of the log entry
+// from and to including
+func (l *Log) SubSlice(from int, to int) ([]protocol.LogEntry, error) {
+	if from < 0 || from >= len(l.entries) || to < 0 || to >= len(l.entries) {
+		return nil, fmt.Errorf("index exceeds slice size")
+	}
+
+	var slice []protocol.LogEntry
+	for i := from; i <= to; i++ {
+		slice = append(slice, *l.entries[i])
+	}
+	return slice, nil
 }
 
 // checks if an entry at given index with given term
@@ -79,7 +109,7 @@ func (l *Log) AppendEntry(entry *protocol.LogEntry) error {
 	// append entry to log
 	index := uint64(len(l.entries))
 	entry.Index = index
-	l.entries[index] = entry
+	l.entries = append(l.entries, entry)
 	return nil
 }
 

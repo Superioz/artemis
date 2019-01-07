@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/superioz/artemis/pkg/buffer"
+	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/raft/protocol"
 	"sync"
 	"testing"
@@ -34,8 +35,8 @@ func TestAMQPPacketConsistency(t *testing.T) {
 	}
 
 	exchange := "artemis"
-	n1 := NewAMQPInterface(exchange)
-	n2 := NewAMQPInterface(exchange)
+	n1 := NewAMQPInterface(exchange, uid.NewUID())
+	n2 := NewAMQPInterface(exchange, uid.NewUID())
 
 	group := sync.WaitGroup{}
 	mutex := sync.Mutex{}
@@ -111,7 +112,7 @@ func TestAMQPBroadcast(t *testing.T) {
 	}
 
 	exchange := "artemis"
-	n1 := NewAMQPInterface(exchange)
+	n1 := NewAMQPInterface(exchange, uid.NewUID())
 
 	group := sync.WaitGroup{}
 	mutex := sync.Mutex{}
@@ -177,8 +178,8 @@ func TestAMQPPrivate(t *testing.T) {
 	}
 
 	exchange := "artemis"
-	n1 := NewAMQPInterface(exchange)
-	n2 := NewAMQPInterface(exchange)
+	n1 := NewAMQPInterface(exchange, uid.NewUID())
+	n2 := NewAMQPInterface(exchange, uid.NewUID())
 
 	group := sync.WaitGroup{}
 	mutex := sync.Mutex{}
@@ -238,7 +239,7 @@ func TestAMQPPrivate(t *testing.T) {
 
 func startNodes(amount int, exchange string, run func(i *AMQPInterface)) {
 	for i := 0; i < amount; i++ {
-		n := NewAMQPInterface(exchange)
+		n := NewAMQPInterface(exchange, uid.NewUID())
 
 		go run(&n)
 	}

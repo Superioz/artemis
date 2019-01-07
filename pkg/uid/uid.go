@@ -1,6 +1,7 @@
 package uid
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
 	"regexp"
@@ -44,4 +45,14 @@ func FromString(str string) (UID, error) {
 // String() method to overwrite.
 func (id UID) String() string {
 	return fmt.Sprintf("%s", id.repr)
+}
+
+// marshals this id to json
+func (id UID) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, id.repr)), nil
+}
+
+// unmarshals this id from json
+func (id *UID) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &id.repr)
 }

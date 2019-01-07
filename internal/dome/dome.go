@@ -7,14 +7,17 @@ import (
 	"github.com/superioz/artemis/internal/clirest"
 	"github.com/superioz/artemis/pkg/consoleprint"
 	"github.com/superioz/artemis/pkg/rest"
+	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/raft"
 	"sync"
 	"time"
 )
 
-var dome *Dome
+var instance *Dome
 
 type Dome struct {
+	id uid.UID
+
 	config  *config.NodeConfig
 	raft    *raft.Node
 	clirest *rest.Server
@@ -22,35 +25,34 @@ type Dome struct {
 	started time.Time
 }
 
-func (b *Dome) Node() *raft.Node {
-	return b.raft
+func (d *Dome) Node() *raft.Node {
+	return d.raft
 }
 
-func (b *Dome) Config() *config.NodeConfig {
-	return b.config
+func (d *Dome) Config() *config.NodeConfig {
+	return d.config
 }
 
-func (b *Dome) InternalRest() *rest.Server {
-	return b.clirest
+func (d *Dome) InternalRest() *rest.Server {
+	return d.clirest
 }
 
-func (b *Dome) GetRuntime() time.Duration {
-	return time.Now().Sub(b.started)
+func (d *Dome) GetRuntime() time.Duration {
+	return time.Now().Sub(d.started)
 }
 
-func newDome(config *config.NodeConfig, raft *raft.Node, clirest *rest.Server) *Dome {
-	dome = &Dome{
-		config:  config,
-		raft:    raft,
-		clirest: clirest,
-		started: time.Now(),
-	}
+func (d *Dome) Id() uid.UID {
+	return d.id
+}
 
-	logrus.Infoln("artemis has been set up")
-	return dome
+func Instance() *Dome {
+	return instance
 }
 
 func Startup() Dome {
+	instance = &Dome{
+		id: uid.NewUID(),
+	}
 	group := sync.WaitGroup{}
 	timeStamp := time.Now()
 
@@ -87,7 +89,7 @@ func Startup() Dome {
 	// ---------
 
 	logrus.Infoln("starting raft..")
-	node := raft.NewNode(cfg)
+	node := raft.NewNode(cfg, instance.id)
 
 	group.Add(1)
 	go node.Up(fmt.Sprintf("%s:%d", cfg.Broker.Host, cfg.Broker.Port), &group)
@@ -102,5 +104,12 @@ func Startup() Dome {
 	logrus.WithFields(logrus.Fields{
 		"runtime": time.Now().Sub(timeStamp),
 	}).Infoln("dome successfully built")
-	return *newDome(&cfg, &node, irest)
+
+	instance.config = &cfg
+	instance.clirest = irest
+	instance.raft = &node
+	instance.started = time.Now()
+
+	logrus.Infoln("artemis has been set up")
+	return *instance
 }

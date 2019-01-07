@@ -56,9 +56,7 @@ type AMQPInterface struct {
 
 // creates a new amqp interface for connecting
 // to e.g. a RabbitMQ broker
-func NewAMQPInterface(exchange string) AMQPInterface {
-	id := uid.NewUID()
-
+func NewAMQPInterface(exchange string, id uid.UID) AMQPInterface {
 	return AMQPInterface{
 		state: &State{id: id, exchangeKey: exchange},
 		broadcastRoute: amqpRoute{

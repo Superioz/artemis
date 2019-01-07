@@ -2,6 +2,7 @@ package raft
 
 import (
 	"github.com/superioz/artemis/config"
+	"github.com/superioz/artemis/pkg/uid"
 	"sync"
 	"testing"
 )
@@ -16,11 +17,11 @@ func TestNodeElection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node := NewNode(cfg)
-	go node.Up("amqp://guest:guest@localhost:5672")
+	waitGroup := sync.WaitGroup{}
+	node := NewNode(cfg, uid.NewUID())
+	go node.Up("amqp://guest:guest@localhost:5672", &waitGroup)
 
 	res := false
-	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(1)
 	AddHook(func(e *Event) error {
 		if e.Node.id != node.id || e.Type != ChangeStateEvent {
@@ -33,9 +34,9 @@ func TestNodeElection(t *testing.T) {
 		return nil
 	})
 
-	node2 := NewNode()
+	node2 := NewNode(cfg, uid.NewUID())
 	node2.Passive = true
-	go node2.Up("amqp://guest:guest@localhost:5672")
+	go node2.Up("amqp://guest:guest@localhost:5672", &waitGroup)
 
 	waitGroup.Wait()
 	if !res {
