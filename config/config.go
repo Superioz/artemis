@@ -31,8 +31,8 @@ const (
 	defaultElectionTimeout   = 2000
 	defaultClusterSize       = 2
 
-	DefaultRestHost            = "localhost"
-	DefaultRestPort            = 2310
+	defaultRestHost            = "localhost"
+	defaultRestPort            = 2310
 	defaultRestReadTimeout     = 5
 	defaultRestWriteTimeout    = 5
 	defaultRestMaxConnsPerIP   = 500
@@ -98,8 +98,8 @@ func DefaultLoggingConfig() Logging {
 
 func DefaultCLIRestConfig() CLIRest {
 	return CLIRest{
-		Host:                 DefaultRestHost,
-		Port:                 DefaultRestPort,
+		Host:                 defaultRestHost,
+		Port:                 defaultRestPort,
 		ReadTimeout:          defaultRestReadTimeout,
 		WriteTimeout:         defaultRestWriteTimeout,
 		MaxConnsPerIP:        defaultRestMaxConnsPerIP,

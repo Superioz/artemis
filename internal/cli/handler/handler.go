@@ -1,7 +1,9 @@
-package clirest
+package handler
 
 import (
+	"encoding/json"
 	"github.com/sirupsen/logrus"
+	"github.com/superioz/artemis/internal/dome"
 	"github.com/valyala/fasthttp"
 )
 
@@ -15,5 +17,11 @@ func Index(ctx *fasthttp.RequestCtx) {
 }
 
 func Status(ctx *fasthttp.RequestCtx) {
-	ctx.Success("application/json", []byte(`{"status": "ok"}`))
+	status := dome.CurrentStatus()
+	data, err := json.Marshal(status)
+	if err != nil {
+		ctx.Error("couldn't fetch current status", 500)
+		return
+	}
+	ctx.Success("application/json", data)
 }

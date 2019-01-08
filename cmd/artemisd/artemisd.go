@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/buaazp/fasthttprouter"
 	"github.com/sirupsen/logrus"
+	"github.com/superioz/artemis/internal/cli/handler"
 	"github.com/superioz/artemis/internal/dome"
 	"os"
 	"os/signal"
@@ -13,7 +15,10 @@ func main() {
 
 	fmt.Println("Hello, World! We need to build the dome (ᴗ˳ᴗ)")
 
-	d := dome.Startup()
+	d := dome.Exec(func(router *fasthttprouter.Router) {
+		router.GET("/", handler.Index)
+		router.GET("/status", handler.Status)
+	})
 
 	// -------------
 	// shutdown hook

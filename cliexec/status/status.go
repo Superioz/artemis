@@ -3,7 +3,7 @@ package status
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/superioz/artemis/internal/clirest"
+	"github.com/superioz/artemis/cliexec"
 )
 
 var statusCmd *cobra.Command
@@ -21,6 +21,6 @@ func init() {
 }
 
 func status(cmd *cobra.Command, args []string) {
-	data, code, err := clirest.Get([]byte{}, "/status")
-	fmt.Println(data, code, err)
+	data, code, err := cliexec.Get([]byte{}, "/status")
+	fmt.Println(string(data), code, err)
 }

@@ -29,7 +29,7 @@ type Node struct {
 
 	currentTerm uint64  // stable storage
 	votedFor    uid.UID // stable storage
-	log         Log     // stable storage
+	log         *Log    // stable storage
 
 	currentVotes map[uid.UID]bool   // volatile for candidates
 	commitIndex  uint64             // volatile
@@ -54,7 +54,7 @@ func NewNode(config config.NodeConfig, id uid.UID) Node {
 		id:                id,
 		state:             Follower,
 		currentTerm:       0,
-		log:               Log{},
+		log:               &Log{},
 		currentVotes:      make(map[uid.UID]bool),
 		commitIndex:       0,
 		lastApplied:       0,
@@ -65,6 +65,22 @@ func NewNode(config config.NodeConfig, id uid.UID) Node {
 		config:            config,
 	}
 	return n
+}
+
+func (n *Node) Log() *Log {
+	return n.log
+}
+
+func (n *Node) CurrentTerm() uint64 {
+	return n.currentTerm
+}
+
+func (n *Node) State() State {
+	return n.state
+}
+
+func (n *Node) TransportState() *transport.State {
+	return n.transport.State()
 }
 
 func (n *Node) SetState(state State) {
