@@ -1,6 +1,6 @@
 package appversion
 
 var (
-	Version string
-	Build   string
+	Version = "0.0.0"
+	Build   = "00000000"
 )

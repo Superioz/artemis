@@ -1,12 +1,15 @@
 package dome
 
 import (
+	"fmt"
+	"github.com/superioz/artemis/appversion"
 	"github.com/superioz/artemis/pkg/uid"
 	"github.com/superioz/artemis/raft/protocol"
 	"time"
 )
 
 type Status struct {
+	Version         string              `json:"version"`
 	BrokerConnected bool                `json:"brokerConnected"`
 	LastSent        time.Time           `json:"lastSent"`
 	LastReceived    time.Time           `json:"lastReceived"`
@@ -24,12 +27,14 @@ func CurrentStatus() Status {
 	lastEntries, _ := d.Node().Log().LastEntries(10)
 
 	return Status{
+		Version:         fmt.Sprintf("%s, build %s", appversion.Version, appversion.Build),
 		BrokerConnected: d.Node().BrokerConnected(),
 		LastSent:        d.Node().TransportState().LastSent(),
 		LastReceived:    d.Node().TransportState().LastReceived(),
 		Id:              d.Id(),
 		ClusterSize:     d.Config().ClusterSize,
 		Runtime:         d.GetRuntime(),
+		Ping:            time.Now(),
 		State:           string(d.Node().State()),
 		Term:            d.Node().CurrentTerm(),
 		Log:             lastEntries,
