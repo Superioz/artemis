@@ -58,7 +58,7 @@ type AMQPInterface struct {
 // to e.g. a RabbitMQ broker
 func NewAMQPInterface(exchange string, id uid.UID) AMQPInterface {
 	return AMQPInterface{
-		state: &State{id: id, exchangeKey: exchange},
+		state: &State{id: id, exchangeKey: exchange, lastSent: time.Now(), lastReceived: time.Now()},
 		broadcastRoute: amqpRoute{
 			topic:     BroadcastTopic,
 			queueName: fmt.Sprintf("%s_%s_%s", exchange, id.String(), broadcastKey),

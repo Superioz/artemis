@@ -22,7 +22,7 @@ type Status struct {
 	Ping            time.Time           `json:"ping"`
 	State           string              `json:"state"`
 	Term            uint64              `json:"term"`
-	Log             []protocol.LogEntry `json:"logview"`
+	Log             []*protocol.LogEntry `json:"logview"`
 }
 
 // fetches the current status. simple as that.

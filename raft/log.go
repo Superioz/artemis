@@ -17,6 +17,16 @@ type LogState struct {
 	Size      int
 }
 
+// creates a new log instance
+func NewLog(entries []*protocol.LogEntry) Log {
+	return Log{entries: entries}
+}
+
+// returns the current log entries
+func (l *Log) Entries() []*protocol.LogEntry {
+	return l.entries
+}
+
 // gets the entry of the log slice
 func (l *Log) GetEntry(index int) *protocol.LogEntry {
 	if index < 0 || index >= len(l.entries) {
@@ -26,21 +36,21 @@ func (l *Log) GetEntry(index int) *protocol.LogEntry {
 }
 
 // get the last x entries of the log
-func (l *Log) LastEntries(size int) ([]protocol.LogEntry, error) {
+func (l *Log) LastEntries(size int) ([]*protocol.LogEntry, error) {
 	entries, err := l.SubSlice(int(math.Max(float64(len(l.entries)-size), 0)), int(float64(len(l.entries)-1)))
 	return entries, err
 }
 
 // returns a sub slice of the log entry
 // from and to including
-func (l *Log) SubSlice(from int, to int) ([]protocol.LogEntry, error) {
+func (l *Log) SubSlice(from int, to int) ([]*protocol.LogEntry, error) {
 	if from < 0 || from >= len(l.entries) || to < 0 || to >= len(l.entries) {
 		return nil, fmt.Errorf("index exceeds slice size")
 	}
 
-	var slice []protocol.LogEntry
+	var slice []*protocol.LogEntry
 	for i := from; i <= to; i++ {
-		slice = append(slice, *l.entries[i])
+		slice = append(slice, l.entries[i])
 	}
 	return slice, nil
 }
@@ -84,7 +94,7 @@ func (l *Log) AppendEntry(entry *protocol.LogEntry) error {
 
 	// if index is set to `0` just append the entry. otherwise
 	// we try to set the entry to specific index.
-	if i != 0 {
+	if i != 0 && !(i < 0 || i >= uint64(len(l.entries))) {
 		// if there is already an entry at this index..
 		cont := l.entries[i]
 
