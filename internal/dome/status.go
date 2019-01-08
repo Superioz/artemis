@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// represents a current status of the dome
+// containing all important information.
+// can be used to e.g. send to the cli.
 type Status struct {
 	Version         string              `json:"version"`
 	BrokerConnected bool                `json:"brokerConnected"`
@@ -22,6 +25,7 @@ type Status struct {
 	Log             []protocol.LogEntry `json:"logview"`
 }
 
+// fetches the current status. simple as that.
 func CurrentStatus() Status {
 	d := Instance()
 	lastEntries, _ := d.Node().Log().LastEntries(10)

@@ -8,6 +8,7 @@ import (
 )
 
 // makes sure that the current status can be marshalled
+// and unmarshalled
 func TestCurrentStatus_Marshal(t *testing.T) {
 	status := Status{
 		Id: uid.NewUID(),

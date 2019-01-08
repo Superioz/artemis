@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// represents an artemis daemon as a dome
+// as the artemis setting is in space, dome seems
+// fitting for containing all important stuff
 type Dome struct {
 	id uid.UID
 
@@ -18,13 +21,15 @@ type Dome struct {
 	started time.Time
 }
 
+// creates a new dome object
 func Create(id uid.UID, cfg *config.NodeConfig, node *raft.Node, cliRest *rest.Server) *Dome {
-	instance := Dome{}
-	instance.id = id
-	instance.config = cfg
-	instance.clirest = cliRest
-	instance.raft = node
-	instance.started = time.Now()
+	instance := Dome{
+		id:      id,
+		config:  cfg,
+		clirest: cliRest,
+		raft:    node,
+		started: time.Now(),
+	}
 	return &instance
 }
 

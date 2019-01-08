@@ -15,7 +15,7 @@ func main() {
 
 	fmt.Println("Hello, World! We need to build the dome (ᴗ˳ᴗ)")
 
-	d := dome.Exec(func(router *fasthttprouter.Router) {
+	d := dome.Build(func(router *fasthttprouter.Router) {
 		router.GET("/", handler.Index)
 		router.GET("/status", handler.Status)
 	})

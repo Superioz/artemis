@@ -19,7 +19,11 @@ func Instance() *Dome {
 	return instance
 }
 
-func Exec(hook func(router *fasthttprouter.Router)) *Dome {
+// builds the dome with the important features such as
+// the cli rest server, the broker connection, ...
+//
+// returns the built dome.
+func Build(hook func(router *fasthttprouter.Router)) *Dome {
 	id := uid.NewUID()
 	group := sync.WaitGroup{}
 	timeStamp := time.Now()
